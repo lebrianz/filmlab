@@ -1,0 +1,1056 @@
+// ============================================================================
+//  FILM LEBZ+  -  Film Simulation by Lebz v1  (satu file DCTL)
+//
+//  PASANG : salin ke folder LUT Resolve, restart Resolve, lalu
+//           Color > Effects > OpenFX > DCTL > pilih "Film Lebz+".
+//  MATI   : kontrol bernilai 0 = fitur mati (Grain, Halation, Aura, Blur, Dust, Weave,
+//           Flicker, Vignette, Leak, Acutance, Age, Streak, Lens, Border).
+//  BANDING: UTIL Before After = garis pembanding (kiri = gambar asli), 0 = mati.
+//           FILM BW Filter: minus = biru, plus = merah (khusus stock hitam putih).
+//  OUTPUT : Rec709, Rec709 D60, P3, P3 D60, Rec2020, HDR PQ, HDR HLG, ACEScct.
+//  INPUT  : Rec709, Linear, DaVinci Intermediate, LogC3, S-Log3, V-Log, Log3G10,
+//           ACEScct, F-Log, F-Log2. Gamut: Rec2020 juga dipakai untuk F-Gamut.
+//  LUT    : centang "UTIL LUT Bake", klik kanan node > Generate 3D LUT
+//           (hanya warna, tanpa grain/halation/dust/dll).
+//  LOGO   : centang "UTIL Logo" untuk menampilkan logo FILM LEBZ+ di viewer.
+//  Nilai stock adalah estimasi prosedural, bukan data film terukur.
+// ============================================================================
+// (tidak perlu diubah)
+#define FEAT_WEAVE   1
+#define FEAT_ACUTANCE 1
+#define FEAT_HALATION 1
+#define FEAT_GRAIN   1
+#define FEAT_DUST    1
+#define FEAT_LOGO    1
+
+DEFINE_UI_PARAMS(hdrHeader, FILM LEBZ+, DCTLUI_COMBO_BOX, 0, { H0 }, { Film Simulation by Lebz v1 })
+
+// ---- INPUT ----
+DEFINE_UI_PARAMS(inEnc, INPUT Encoding, DCTLUI_COMBO_BOX, 0, { IE0, IE1, IE2, IE3, IE4, IE5, IE6, IE7, IE8, IE9 }, { Rec709 Gamma 2.4, Linear, DaVinci Intermediate, ARRI LogC3, Sony S-Log3, Panasonic V-Log, RED Log3G10, ACEScct, Fujifilm F-Log, Fujifilm F-Log2 })
+DEFINE_UI_PARAMS(inGamut, INPUT Gamut, DCTLUI_COMBO_BOX, 0, { IG0, IG1, IG2, IG3, IG4, IG5, IG6, IG7, IG8, IG9, IG10 }, { Rec709, DaVinci Wide Gamut, ARRI Wide Gamut 3, Sony S-Gamut3, Sony S-Gamut3 Cine, Panasonic V-Gamut, RED Wide Gamut, Rec2020 F-Gamut, P3 D65, ACEScg AP1, ACES2065-1 AP0 })
+DEFINE_UI_PARAMS(exposure, INPUT Exposure, DCTLUI_SLIDER_FLOAT, 0.0, -5.0, 5.0, 0.01)
+DEFINE_UI_PARAMS(temperature, INPUT Temp, DCTLUI_SLIDER_FLOAT, 0.0, -100.0, 100.0, 0.1)
+DEFINE_UI_PARAMS(tintv, INPUT Tint, DCTLUI_SLIDER_FLOAT, 0.0, -100.0, 100.0, 0.1)
+
+// ---- FILM ----
+DEFINE_UI_PARAMS(look, FILM Look, DCTLUI_COMBO_BOX, 0, { LK0, LK1, LK2, LK3, LK4, LK5, LK6 }, { Off Manual, Clean 35mm, Cinematic 35mm, Gritty 16mm, Home Movie 8mm, Large Format 65mm, Vintage Print })
+DEFINE_UI_PARAMS(lookAmt, FILM Look Amount, DCTLUI_SLIDER_FLOAT, 1.0, 0.0, 1.5, 0.01)
+DEFINE_UI_PARAMS(stock, FILM Stock, DCTLUI_COMBO_BOX, 0, { ST_0, ST_1, ST_2, ST_3, ST_4, ST_5, ST_6, ST_7, ST_8, ST_9, ST_10, ST_11, ST_12, ST_13, ST_14, ST_15, ST_16, ST_17, ST_18, ST_19, ST_20, ST_21, ST_22, ST_23, ST_24, ST_25, ST_26, ST_27, ST_28, ST_29, ST_30, ST_31, ST_32, ST_33, ST_34, ST_35, ST_36, ST_37, ST_38, ST_39, ST_40, ST_41, ST_42, ST_43, ST_44, ST_45, ST_46, ST_47, ST_48, ST_49, ST_50, ST_51, ST_52, ST_53, ST_54, ST_55, ST_56, ST_57, ST_58, ST_59, ST_60, ST_61, ST_62, ST_63, ST_64, ST_65, ST_66, ST_67, ST_68, ST_69, ST_70, ST_71, ST_72, ST_73, ST_74, ST_75, ST_76, ST_77, ST_78, ST_79, ST_80, ST_81, ST_82, ST_83, ST_84, ST_85, ST_86, ST_87, ST_88, ST_89, ST_90, ST_91, ST_92, ST_93, ST_94, ST_95, ST_96, ST_97, ST_98, ST_99, ST_100 }, { V3 250D, V3 50D, V3 500T, V3 200T, Bleach Bypass 30, Bleach Bypass 60, Bleach Bypass 100, Ektachrome ECN2 Printed, Ektachrome ECN2 Standard, Ektachrome ECN2 Telecine, CineStill 800T, CineStill 400D, CineStill 50D, Pro 400H, Portra 160, Portra 400, Portra 800, Superia 400, Vista 400, Proimage 100, ColorPlus 200, Gold 200, UltraMax 400, UltraMax 800, Fujicolor 200, Ilfocolor 400, DCF 100, Ektar 100, Lomo Color 100, Aerocolor 100, Phoenix, Prestige 200, Centuria 200, Vista 200, Venus 800, Color92, Ektachrome C41, Purple XR, Redscale XR, Delight Art 100, Metropolis XR, XP2 400, Vision2 50D 5201, Vision2 200T 5217, Vision2 250D 5205, Vision2 500T 5218, Vision2 HD Scan 500T 5299, Vision2 Indie 500T 5230, Vision2 Expression 500T 5229, Vision 200T 5274, Vision 250D 5246, Vision 320T 5277, Vision 500T 5279, Vision Expression 500T 5284, EXR 100T 5248, EXR 50D 5245, EXR 200T 5293, EXR 500T 5298, Eterna 250T 8553, Eterna 250D 8563, Eterna 400T 8583, Eterna 500T 8573, Eterna Vivid 160T 8543, Eterna Vivid 250D 8546, Eterna Vivid 500T 8547, Super F 250D 8552, Super F 250D 8624, Super F 64D 8621, Super F 64D 8622, Super F 500T 8672, Reala 500D 8592, Plus X 5231, Ektachrome 100, Velvia 100, Velvia 50, Provia 100F, Elite Chrome 100 Expired, Instax Color, Instax Monochrome, HP5 400, Delta 400, T MAX 400, Tri X 400, Arista Ultra 400, Pan 400, Fomapan 400, Retro 400S, StreetPan 400, Holga 400, T MAX 3200, Delta 3200, Acros 100II, FP4 125, T MAX 100, PanF 50, SFX 200, CineStill XX 250, Delta 100, Ortho 80, Fomapan 100, Monolit 64 })
+DEFINE_UI_PARAMS(gauge, FILM Gauge, DCTLUI_COMBO_BOX, 2, { GA0, GA1, GA2, GA3, GA4 }, { 8mm, 16mm, 35mm, VistaVision 35mm FF, 65mm })
+DEFINE_UI_PARAMS(pushpull, FILM Push Pull, DCTLUI_SLIDER_FLOAT, 0.0, -3.0, 3.0, 0.05)
+DEFINE_UI_PARAMS(filmAge, FILM Age, DCTLUI_SLIDER_FLOAT, 0.0, 0.0, 1.0, 0.01)
+DEFINE_UI_PARAMS(bwFilt, FILM BW Filter, DCTLUI_SLIDER_FLOAT, 0.0, -1.0, 1.0, 0.01)
+
+// ---- PRINT ----
+DEFINE_UI_PARAMS(printStyle, PRINT Style, DCTLUI_COMBO_BOX, 0, { PS0, PS1, PS2 }, { Cinema Print, Photo Print, Telecine })
+DEFINE_UI_PARAMS(printContrast, PRINT Contrast, DCTLUI_SLIDER_FLOAT, 1.0, 0.5, 1.6, 0.01)
+DEFINE_UI_PARAMS(richness, PRINT Saturation, DCTLUI_SLIDER_FLOAT, 1.0, 0.0, 2.0, 0.01)
+DEFINE_UI_PARAMS(fadeAmt, PRINT Fade, DCTLUI_SLIDER_FLOAT, 0.0, 0.0, 1.0, 0.01)
+DEFINE_UI_PARAMS(hiSatDens, PRINT Density, DCTLUI_SLIDER_FLOAT, 0.35, 0.0, 1.0, 0.01)
+DEFINE_UI_PARAMS(toeAmt, PRINT Toe, DCTLUI_SLIDER_FLOAT, 0.0, -1.0, 1.0, 0.01)
+DEFINE_UI_PARAMS(shoAmt, PRINT Shoulder, DCTLUI_SLIDER_FLOAT, 0.0, -1.0, 1.0, 0.01)
+DEFINE_UI_PARAMS(hueShift, PRINT Hue Shift, DCTLUI_SLIDER_FLOAT, 0.0, -1.0, 1.0, 0.01)
+DEFINE_UI_PARAMS(plR, LIGHT Red, DCTLUI_SLIDER_FLOAT, 0.0, -25.0, 25.0, 0.1)
+DEFINE_UI_PARAMS(plG, LIGHT Green, DCTLUI_SLIDER_FLOAT, 0.0, -25.0, 25.0, 0.1)
+DEFINE_UI_PARAMS(plB, LIGHT Blue, DCTLUI_SLIDER_FLOAT, 0.0, -25.0, 25.0, 0.1)
+DEFINE_UI_PARAMS(stShHue, SPLIT Shadow Hue, DCTLUI_SLIDER_FLOAT, 210.0, 0.0, 360.0, 1.0)
+DEFINE_UI_PARAMS(stShAmt, SPLIT Shadow Amt, DCTLUI_SLIDER_FLOAT, 0.0, 0.0, 1.0, 0.01)
+DEFINE_UI_PARAMS(stHiHue, SPLIT High Hue, DCTLUI_SLIDER_FLOAT, 40.0, 0.0, 360.0, 1.0)
+DEFINE_UI_PARAMS(stHiAmt, SPLIT High Amt, DCTLUI_SLIDER_FLOAT, 0.0, 0.0, 1.0, 0.01)
+
+// ---- GRAIN ----
+DEFINE_UI_PARAMS(grAmount, GRAIN Strength, DCTLUI_SLIDER_FLOAT, 1.0, 0.0, 3.0, 0.01)
+DEFINE_UI_PARAMS(grSize, GRAIN Size, DCTLUI_SLIDER_FLOAT, 1.8, 0.3, 4.0, 0.01)
+DEFINE_UI_PARAMS(grRough, GRAIN Roughness, DCTLUI_SLIDER_FLOAT, 0.4, 0.0, 1.5, 0.01)
+DEFINE_UI_PARAMS(grBias, GRAIN Tone Bias, DCTLUI_SLIDER_FLOAT, 0.0, -1.0, 1.0, 0.01)
+
+// ---- HALATION AND AURA ----
+DEFINE_UI_PARAMS(halStrength, HALATION Strength, DCTLUI_SLIDER_FLOAT, 0.5, 0.0, 3.0, 0.01)
+DEFINE_UI_PARAMS(halRadius, HALATION Radius, DCTLUI_SLIDER_FLOAT, 1.0, 0.1, 4.0, 0.01)
+DEFINE_UI_PARAMS(halThresh, HALATION Threshold, DCTLUI_SLIDER_FLOAT, 0.7, 0.0, 3.0, 0.01)
+DEFINE_UI_PARAMS(auraStrength, AURA Strength, DCTLUI_SLIDER_FLOAT, 0.0, 0.0, 2.0, 0.01)
+DEFINE_UI_PARAMS(auraRadius, AURA Radius, DCTLUI_SLIDER_FLOAT, 1.0, 0.1, 3.0, 0.01)
+
+// ---- LENS ----
+DEFINE_UI_PARAMS(blurAmt, BLUR Softness, DCTLUI_SLIDER_FLOAT, 0.0, 0.0, 10.0, 0.01)
+DEFINE_UI_PARAMS(blurEdge, BLUR Edge, DCTLUI_SLIDER_FLOAT, 0.5, 0.0, 3.0, 0.01)
+DEFINE_UI_PARAMS(acuFine, ACUTANCE Amount, DCTLUI_SLIDER_FLOAT, 0.0, -1.0, 2.0, 0.01)
+DEFINE_UI_PARAMS(acuSize, ACUTANCE Size, DCTLUI_SLIDER_FLOAT, 1.0, 0.3, 3.0, 0.01)
+DEFINE_UI_PARAMS(vigAmt, VIGNETTE Amount, DCTLUI_SLIDER_FLOAT, 0.0, 0.0, 1.0, 0.01)
+DEFINE_UI_PARAMS(vigSize, VIGNETTE Size, DCTLUI_SLIDER_FLOAT, 0.5, 0.2, 0.9, 0.01)
+DEFINE_UI_PARAMS(lensK, LENS Distort, DCTLUI_SLIDER_FLOAT, 0.0, -1.0, 1.0, 0.01)
+DEFINE_UI_PARAMS(lensCA, LENS Chroma, DCTLUI_SLIDER_FLOAT, 0.0, 0.0, 1.0, 0.01)
+DEFINE_UI_PARAMS(streakAmt, STREAK Strength, DCTLUI_SLIDER_FLOAT, 0.0, 0.0, 2.0, 0.01)
+DEFINE_UI_PARAMS(streakLen, STREAK Length, DCTLUI_SLIDER_FLOAT, 1.0, 0.2, 3.0, 0.01)
+
+// ---- DEFECTS AND MOTION ----
+DEFINE_UI_PARAMS(dustAmt, DUST Amount, DCTLUI_SLIDER_FLOAT, 0.0, 0.0, 2.0, 0.01)
+DEFINE_UI_PARAMS(dustSize, DUST Size, DCTLUI_SLIDER_FLOAT, 1.0, 0.3, 3.0, 0.01)
+DEFINE_UI_PARAMS(dustScratch, DUST Scratch Hair, DCTLUI_SLIDER_FLOAT, 0.5, 0.0, 3.0, 0.01)
+DEFINE_UI_PARAMS(gwAmount, WEAVE Amount, DCTLUI_SLIDER_FLOAT, 0.0, 0.0, 3.0, 0.01)
+DEFINE_UI_PARAMS(gwJitter, WEAVE Jitter, DCTLUI_SLIDER_FLOAT, 0.25, 0.0, 1.0, 0.01)
+DEFINE_UI_PARAMS(flAmount, FLICKER Amount, DCTLUI_SLIDER_FLOAT, 0.0, 0.0, 2.0, 0.01)
+DEFINE_UI_PARAMS(flSpeed, FLICKER Speed, DCTLUI_SLIDER_FLOAT, 0.1, 0.01, 1.0, 0.01)
+DEFINE_UI_PARAMS(leakAmt, LEAK Amount, DCTLUI_SLIDER_FLOAT, 0.0, 0.0, 1.0, 0.01)
+DEFINE_UI_PARAMS(borderAmt, BORDER Amount, DCTLUI_SLIDER_FLOAT, 0.0, 0.0, 1.0, 0.01)
+DEFINE_UI_PARAMS(sprocketAmt, BORDER Sprocket, DCTLUI_SLIDER_FLOAT, 0.0, 0.0, 1.0, 0.01)
+
+// ---- OUTPUT ----
+DEFINE_UI_PARAMS(outSpace, OUTPUT Display, DCTLUI_COMBO_BOX, 0, { OS0, OS1, OS2, OS3, OS4, OS5, OS6, OS7 }, { Rec709 Gamma 2.4, Rec709 D60 Sim, P3 D65 Gamma 2.6, P3 D60 Sim, Rec2020 Gamma 2.4, HDR PQ, HDR HLG, ACEScct })
+DEFINE_UI_PARAMS(hdrPeak, OUTPUT HDR Nits, DCTLUI_SLIDER_FLOAT, 1000.0, 200.0, 4000.0, 10.0)
+DEFINE_UI_PARAMS(splitPos, UTIL Before After, DCTLUI_SLIDER_FLOAT, 0.0, 0.0, 1.0, 0.01)
+DEFINE_UI_PARAMS(lutBake, UTIL LUT Bake, DCTLUI_CHECK_BOX, 0)
+DEFINE_UI_PARAMS(showLogo, UTIL Logo, DCTLUI_CHECK_BOX, 0)
+
+#line 2
+
+// ---- nilai tetap (kontrol lama yang disederhanakan) ----
+#define cstOn 1
+#define frameOffset 0
+#define grOn (grAmount > 0.0f)
+#define grSoft (0.65f - 0.3f * grRough)
+#define grSat 0.7f
+#define grMixR 1.0f
+#define grMixG 1.0f
+#define grMixB 1.2f
+#define grStreak 0.0f
+#define grStreakLen 30.0f
+#define grAnam 1.0f
+#define grLight 1.0f
+#define grDark 1.0f
+#define zoneMode 1
+#define zShadow 1.0f
+#define zMid 1.0f
+#define zHigh 1.0f
+#define zFalse 0
+#define z0 (0.50f * _fmaxf(1.0f - 0.90f * grBias, 0.0f))
+#define z1 (0.80f * _fmaxf(1.0f - 0.675f * grBias, 0.0f))
+#define z2 (1.00f * _fmaxf(1.0f - 0.45f * grBias, 0.0f))
+#define z3 (1.10f * _fmaxf(1.0f - 0.225f * grBias, 0.0f))
+#define z4 (1.00f)
+#define z5 (0.85f * _fmaxf(1.0f + 0.225f * grBias, 0.0f))
+#define z6 (0.65f * _fmaxf(1.0f + 0.45f * grBias, 0.0f))
+#define z7 (0.45f * _fmaxf(1.0f + 0.675f * grBias, 0.0f))
+#define z8 (0.25f * _fmaxf(1.0f + 0.90f * grBias, 0.0f))
+#define halOn (halStrength > 0.0f)
+#define halSoft 0.15f
+#define halSat 1.0f
+#define halBiasR 1.0f
+#define halBiasG 1.0f
+#define halBiasB 1.0f
+#define halQual 1
+#define auraOn (auraStrength > 0.0f)
+#define auraThresh 0.5f
+#define auraGreen 0.5f
+#define acuOn (acuFine != 0.0f)
+#define acuCoarse 0.0f
+#define acuEdge 0.0f
+#define blurCA 0.0f
+#define dustProfile 1
+#define dustPolar 0.3f
+#define dustHold 1
+#define scratchHold 12
+#define gwStyle 1
+#define gwSpeed 0.12f
+#define gwRot 0.5f
+#define gwH 1.0f
+#define gwV 1.0f
+#define flStyle 0.3f
+#define hdrUnroll 0.7f
+#define tcBlend 0.0f
+#define printColor 1.0f
+#define blackPoint (fadeAmt * 0.05f)
+#define neutralize 0.0f
+#define fogReduce 0.0f
+#define plM 0.0f
+#define vibrance 0.0f
+#define labContrast 0.0f
+#define stBal 0.0f
+#define stSoft 0.5f
+
+__DEVICE__ int wrapFrame(int f){ if (f < 0) f = -f; return f - (f / 8192) * 8192; }
+#define CURRENT_FRAME wrapFrame((int)TIMELINE_FRAME_INDEX + (int)frameOffset)
+
+
+
+// ============================ MATH HELPERS ==================================
+__DEVICE__ float lerpf(float a, float b, float t){ return a + (b - a) * t; }
+__DEVICE__ float clamp01(float x){ return _fminf(_fmaxf(x, 0.0f), 1.0f); }
+__DEVICE__ float sstep(float a, float b, float x){ float t = clamp01((x - a) / (b - a)); return t * t * (3.0f - 2.0f * t); }
+__DEVICE__ float tanh_(float x){ x = _fminf(_fmaxf(x, -15.0f), 15.0f); float e = _expf(2.0f * x); return (e - 1.0f) / (e + 1.0f); }
+__DEVICE__ float luma3(float3 c, float3 w){ return c.x * w.x + c.y * w.y + c.z * w.z; }
+
+// H&D style curve: t = relative log exposure, g = slope, lt = toe depth, ls = shoulder depth
+__DEVICE__ float hd(float t, float g, float lt, float ls){
+  return (t >= 0.0f) ? ls * tanh_(g * t / ls) : -lt * tanh_(-g * t / lt);
+}
+
+// ------------------------------ HASH / NOISE --------------------------------
+__DEVICE__ unsigned int pcg(unsigned int v){
+  unsigned int s = v * 747796405u + 2891336453u;
+  unsigned int w = ((s >> ((s >> 28u) + 4u)) ^ s) * 277803737u;
+  return (w >> 22u) ^ w;
+}
+__DEVICE__ float hash3(int a, int b, int c){
+  unsigned int h = pcg((unsigned int)a * 1597334677u ^ pcg((unsigned int)b * 3812015801u ^ pcg((unsigned int)c + 1013904223u)));
+  return (float)(h & 16777215u) / 16777216.0f;
+}
+__DEVICE__ float vn1(float t, int seed){
+  float i = _floor(t); float f = t - i; f = f * f * (3.0f - 2.0f * f);
+  return lerpf(hash3((int)i, seed, 7), hash3((int)i + 1, seed, 7), f);
+}
+// 2D noise, ~unit variance, soft=0 -> blocky cells, soft=1 -> smooth
+__DEVICE__ float gnoise(float x, float y, float cw, float chh, int seed, int fr, float soft){
+  float u = x / cw, v = y / chh;
+  float iu = _floor(u), iv = _floor(v);
+  float fu = u - iu, fv = v - iv;
+  int a = (int)iu, b = (int)iv;
+  int s = fr * 977 + seed;
+  float h00 = hash3(a, b, s), h10 = hash3(a + 1, b, s), h01 = hash3(a, b + 1, s), h11 = hash3(a + 1, b + 1, s);
+  fu = fu * fu * (3.0f - 2.0f * fu); fv = fv * fv * (3.0f - 2.0f * fv);
+  float sm = lerpf(lerpf(h00, h10, fu), lerpf(h01, h11, fu), fv);
+  float n = (lerpf(h00, sm, soft) - 0.5f) * lerpf(3.46f, 5.2f, soft);
+  return _fminf(_fmaxf(n, -3.0f), 3.0f);
+}
+
+// ============================ COLOR SPACES ==================================
+__DEVICE__ float3 toWorkM(float3 v,int g){
+  float a,b,c,d,e,f_,g_,h,i;
+  switch(g){
+    case 0: a=0.56276746f;b=0.32351659f;c=0.11371596f;d=0.07775464f;e=0.74957735f;f_=0.17266802f;g_=0.06466920f;h=0.19199869f;i=0.74333211f;break;
+    case 1: a=1.00000000f;b=-0.00000000f;c=-0.00000000f;d=0.00000000f;e=1.00000000f;f_=-0.00000000f;g_=-0.00000000f;h=0.00000000f;i=1.00000000f;break;
+    case 2: a=0.88505849f;b=0.10359376f;c=0.01134774f;d=0.06922662f;e=0.91943152f;f_=0.01134186f;g_=0.07536848f;h=0.05279596f;i=0.87183556f;break;
+    case 3: a=0.99665004f;b=-0.02673952f;c=0.03008948f;d=0.00896200f;e=0.92530063f;f_=0.06573737f;g_=0.06802042f;h=0.09770487f;i=0.83427471f;break;
+    case 4: a=0.85278723f;b=0.13247579f;c=0.01473698f;d=-0.01498119f;e=0.98702901f;f_=0.02795218f;g_=0.03790785f;h=0.09167887f;i=0.87041328f;break;
+    case 5: a=0.95878877f;b=0.01341688f;c=0.02779436f;d=0.00862155f;e=0.89814902f;f_=0.09322943f;g_=0.06543643f;h=0.09093024f;i=0.84363334f;break;
+    case 6: a=1.04618350f;b=-0.08217532f;c=0.03599182f;d=0.00299882f;e=0.96228146f;f_=0.03471972f;g_=0.01830134f;h=-0.16802076f;i=1.14971942f;break;
+    case 7: a=0.89211212f;b=0.02436918f;c=0.08351870f;d=0.03261660f;e=0.78613752f;f_=0.18124588f;g_=0.06997705f;h=0.10474949f;i=0.82527346f;break;
+    case 8: a=0.67351724f;b=0.20159153f;c=0.12489123f;d=0.06032906f;e=0.75003422f;f_=0.18963673f;g_=0.05654380f;h=0.12707417f;i=0.81638203f;break;
+    case 9: a=0.91467753f;b=0.00447906f;c=0.08084341f;d=0.03079375f;e=0.78450535f;f_=0.18470090f;g_=0.06741276f;h=0.08295544f;i=0.84963181f;break;
+    case 10: a=1.32792835f;b=-0.21155035f;c=-0.11637800f;d=-0.01382559f;e=0.91436124f;f_=0.09946435f;g_=0.09856064f;h=0.07650545f;i=0.82493392f;break;
+    default: a=1.0f;b=0.0f;c=0.0f;d=0.0f;e=1.0f;f_=0.0f;g_=0.0f;h=0.0f;i=1.0f;break;
+  }
+  return make_float3(a*v.x+b*v.y+c*v.z, d*v.x+e*v.y+f_*v.z, g_*v.x+h*v.y+i*v.z);
+}
+__DEVICE__ float3 fromWorkM(float3 v,int g){
+  float a,b,c,d,e,f_,g_,h,i;
+  switch(g){
+    case 0: a=1.89861490f;b=-0.79217618f;c=-0.10643872f;d=-0.16894879f;e=1.48897575f;f_=-0.32002697f;g_=-0.12153916f;h=-0.31567585f;i=1.43721501f;break;
+    case 1: a=1.53154371f;b=-0.38718496f;c=-0.14435875f;d=-0.10031767f;e=1.41325474f;f_=-0.31293708f;g_=-0.09046195f;h=-0.19316357f;i=1.28362552f;break;
+    case 2: a=1.13030218f;b=-0.02039285f;c=-0.10990933f;d=-0.02554706f;e=1.31084932f;f_=-0.28530226f;g_=-0.09259861f;h=-0.16465302f;i=1.25725163f;break;
+    case 3: a=1.10091538f;b=0.00490402f;c=-0.10581940f;d=-0.02318102f;e=1.30457632f;f_=-0.28139529f;g_=-0.08508715f;h=-0.12776392f;i=1.21285107f;break;
+    default: a=1.0f;b=0.0f;c=0.0f;d=0.0f;e=1.0f;f_=0.0f;g_=0.0f;h=0.0f;i=1.0f;break;
+  }
+  return make_float3(a*v.x+b*v.y+c*v.z, d*v.x+e*v.y+f_*v.z, g_*v.x+h*v.y+i*v.z);
+}
+__DEVICE__ float3 d60M(float3 v,int g){
+  float a,b,c,d,e,f_,g_,h,i;
+  switch(g){
+    case 0: a=1.01737572f;b=0.02550613f;c=0.00422117f;d=-0.00121541f;e=0.99427774f;f_=0.00148081f;g_=-0.00192088f;h=-0.00681176f;i=0.92405095f;break;
+    case 1: a=1.01632826f;b=0.01734171f;c=0.00410167f;d=-0.00056667f;e=0.99512826f;f_=0.00172624f;g_=-0.00027220f;h=-0.00067048f;i=0.92424788f;break;
+    case 2: a=1.01558038f;b=0.00955379f;c=-0.00104622f;d=0.00053273f;e=0.99583235f;f_=0.00090963f;g_=-0.00055982f;h=0.00071943f;i=0.92429167f;break;
+    default: a=1.0f;b=0.0f;c=0.0f;d=0.0f;e=1.0f;f_=0.0f;g_=0.0f;h=0.0f;i=1.0f;break;
+  }
+  return make_float3(a*v.x+b*v.y+c*v.z, d*v.x+e*v.y+f_*v.z, g_*v.x+h*v.y+i*v.z);
+}
+
+__DEVICE__ float decodeTF(float v, int tf){
+  if (tf == 0) return _powf(_fmaxf(v, 0.0f), 2.4f);
+  if (tf == 1) return v;
+  if (tf == 2){ // DaVinci Intermediate
+    return (v <= 0.02740668f) ? v / 10.44426855f : _exp2f(v / 0.07329248f - 7.0f) - 0.0075f;
+  }
+  if (tf == 3){ // ARRI LogC3 EI800
+    return (v > 0.1496582f) ? (_powf(10.0f, (v - 0.385537f) / 0.247190f) - 0.052272f) / 5.555556f : (v - 0.092809f) / 5.367655f;
+  }
+  if (tf == 4){ // Sony S-Log3
+    return (v >= 0.1673609920f) ? _powf(10.0f, (v * 1023.0f - 420.0f) / 261.5f) * 0.19f - 0.01f : (v * 1023.0f - 95.0f) * 0.01125f / (171.2102946929f - 95.0f);
+  }
+  if (tf == 5){ // Panasonic V-Log
+    return (v < 0.181f) ? (v - 0.125f) / 5.6f : _powf(10.0f, (v - 0.598206f) / 0.241514f) - 0.00873f;
+  }
+  if (tf == 8){ // Fujifilm F-Log
+    return (v >= 0.100537775223865f) ? (_powf(10.0f, (v - 0.790453f) / 0.344676f) - 0.009468f) / 0.555556f : (v - 0.092864f) / 8.735631f;
+  }
+  if (tf == 9){ // Fujifilm F-Log2
+    return (v >= 0.100686685370811f) ? (_powf(10.0f, (v - 0.384316f) / 0.245281f) - 0.064829f) / 5.555556f : (v - 0.092864f) / 8.799461f;
+  }
+  if (tf == 7){ return (v <= 0.155251141552511f) ? (v - 0.0729055341958355f) / 10.5402377416545f : _exp2f(v * 17.52f - 9.72f); }
+  // RED Log3G10
+  return (v < 0.0f) ? v / 15.1927f - 0.01f : (_powf(10.0f, v / 0.224282f) - 1.0f) / 155.975327f - 0.01f;
+}
+__DEVICE__ float3 toLin(float3 e, int tf, int gm, int cst){
+  if (cst == 0) return e; // bypass: assume DaVinci Wide Gamut linear
+  float3 l = make_float3(decodeTF(e.x, tf), decodeTF(e.y, tf), decodeTF(e.z, tf));
+  return toWorkM(l, gm);
+}
+__DEVICE__ float pqEnc(float nits){
+  float y = _powf(_fmaxf(nits, 0.0f) / 10000.0f, 0.1593017578125f);
+  return _powf((0.8359375f + 18.8515625f * y) / (1.0f + 18.6875f * y), 78.84375f);
+}
+__DEVICE__ float hlgEnc(float e){
+  e = _fmaxf(e, 0.0f);
+  return (e <= 1.0f / 12.0f) ? _sqrtf(3.0f * e) : 0.17883277f * _logf(12.0f * e - 0.28466892f) + 0.55991073f;
+}
+__DEVICE__ float3 hue2rgb(float h){
+  h = h / 60.0f; float k = h - 6.0f * _floor(h / 6.0f);
+  float r = clamp01(_fabs(k - 3.0f) - 1.0f), g = clamp01(2.0f - _fabs(k - 2.0f)), b = clamp01(2.0f - _fabs(k - 4.0f));
+  return make_float3(r, g, b);
+}
+__DEVICE__ float rgbHue(float3 c){
+  float mx = _fmaxf(c.x, _fmaxf(c.y, c.z)), mn = _fminf(c.x, _fminf(c.y, c.z)); float d = mx - mn;
+  if (d < 1e-6f) return 0.0f;
+  float h;
+  if (mx == c.x) h = (c.y - c.z) / d; else if (mx == c.y) h = 2.0f + (c.z - c.x) / d; else h = 4.0f + (c.x - c.y) / d;
+  h *= 60.0f; if (h < 0.0f) h += 360.0f; return h;
+}
+
+__DEVICE__ float3 splitTone(float3 o, float shH, float shA, float hiH, float hiA, float bal, float soft, float3 YW){
+  if (shA <= 0.0f && hiA <= 0.0f) return o;
+  float yS = _sqrtf(clamp01(luma3(o, YW)));
+  float piv = 0.5f + 0.3f * bal, wd = 0.15f + 0.35f * soft;
+  float wH = sstep(piv - wd, piv + wd, yS), wS = 1.0f - wH;
+  float3 cs = hue2rgb(shH), ch = hue2rgb(hiH);
+  float ks = shA * wS * 0.6f, kh = hiA * wH * 0.6f;
+  float ms = (cs.x + cs.y + cs.z) / 3.0f, mh = (ch.x + ch.y + ch.z) / 3.0f;
+  return make_float3(o.x * (1.0f + (cs.x - ms) * ks + (ch.x - mh) * kh), o.y * (1.0f + (cs.y - ms) * ks + (ch.y - mh) * kh), o.z * (1.0f + (cs.z - ms) * ks + (ch.z - mh) * kh));
+}
+__DEVICE__ float acesCct(float x){ return (x <= 0.0078125f) ? 10.5402377416545f * x + 0.0729055341958355f : (_log2f(_fmaxf(x, 1e-9f)) + 9.72f) / 17.52f; }
+
+// ============================ FILM STOCKS ===================================
+typedef struct { float iso, contrast, sat, warm, tint, xover, lift, hal, aura, mono, red, grain; } Stock;
+__DEVICE__ Stock mk(float a, float b, float c, float d, float e, float f_, float g_, float h, float i, float j, float k, float l){
+  Stock s; s.iso = a; s.contrast = b; s.sat = c; s.warm = d; s.tint = e; s.xover = f_; s.lift = g_; s.hal = h; s.aura = i; s.mono = j; s.red = k; s.grain = l; return s;
+}
+__DEVICE__ Stock getStock(int id){
+  switch(id){
+    case 0: return mk(250.0000f, 1.0200f, 1.1000f, 0.0500f, 0.0000f, 0.3000f, 0.0000f, 0.6000f, 0.1500f, 0.0000f, 0.4500f, 1.0000f);
+    case 1: return mk(50.0000f, 1.0500f, 1.1500f, 0.1000f, 0.0000f, 0.3000f, 0.0000f, 0.5000f, 0.1000f, 0.0000f, 0.4000f, 0.6500f);
+    case 2: return mk(500.0000f, 1.0400f, 1.0500f, -0.0500f, 0.0000f, 0.4500f, 0.0010f, 0.8000f, 0.2500f, 0.0000f, 0.5500f, 1.2500f);
+    case 3: return mk(200.0000f, 1.0000f, 1.0500f, -0.0500f, 0.0000f, 0.0500f, 0.0000f, 0.6500f, 0.1800f, 0.0000f, 0.5000f, 0.9500f);
+    case 4: return mk(500.0000f, 1.1200f, 0.8500f, 0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.6000f, 0.2000f, 0.0000f, 0.4000f, 1.1500f);
+    case 5: return mk(500.0000f, 1.2800f, 0.6200f, 0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.6000f, 0.2000f, 0.0000f, 0.4000f, 1.4000f);
+    case 6: return mk(500.0000f, 1.4500f, 0.4000f, 0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.6000f, 0.2000f, 0.0000f, 0.4000f, 1.7000f);
+    case 7: return mk(100.0000f, 1.1500f, 1.3000f, -0.1500f, -0.1000f, 0.2500f, 0.0000f, 0.6000f, 0.2000f, 0.0000f, 0.5000f, 1.3000f);
+    case 8: return mk(100.0000f, 1.1000f, 1.2500f, -0.1000f, -0.1000f, 0.2000f, 0.0000f, 0.6000f, 0.2000f, 0.0000f, 0.5000f, 1.4000f);
+    case 9: return mk(100.0000f, 1.0000f, 1.2000f, -0.1000f, -0.1000f, 0.2000f, 0.0000f, 0.6000f, 0.2000f, 0.0000f, 0.5000f, 1.4000f);
+    case 10: return mk(800.0000f, 0.9500f, 1.0500f, -0.1500f, 0.0000f, 0.0000f, 0.0020f, 2.0000f, 0.9000f, 0.0000f, 1.0000f, 1.3500f);
+    case 11: return mk(400.0000f, 0.9800f, 1.0500f, 0.0500f, 0.0000f, 0.0000f, 0.0010f, 1.6000f, 0.8000f, 0.0000f, 1.0000f, 1.1000f);
+    case 12: return mk(50.0000f, 1.0000f, 1.0800f, 0.0500f, 0.0000f, 0.0000f, 0.0000f, 1.4000f, 0.7000f, 0.0000f, 1.0000f, 0.6500f);
+    case 13: return mk(400.0000f, 0.9000f, 0.9500f, -0.1200f, 0.1500f, 0.0000f, 0.0040f, 0.5000f, 0.2000f, 0.0000f, 0.4000f, 1.0000f);
+    case 14: return mk(160.0000f, 0.8800f, 0.9000f, 0.1200f, 0.0000f, -0.0500f, 0.0030f, 0.5000f, 0.1500f, 0.0000f, 0.4000f, 0.7000f);
+    case 15: return mk(400.0000f, 0.9200f, 0.9500f, 0.1500f, 0.0000f, -0.0500f, 0.0030f, 0.5000f, 0.1500f, 0.0000f, 0.4000f, 1.0000f);
+    case 16: return mk(800.0000f, 0.9500f, 0.9800f, 0.1500f, 0.0000f, -0.0500f, 0.0040f, 0.6000f, 0.2000f, 0.0000f, 0.4500f, 1.3000f);
+    case 17: return mk(400.0000f, 1.0500f, 1.2000f, -0.1000f, 0.2500f, 0.1000f, 0.0010f, 0.5000f, 0.2000f, 0.0000f, 0.4000f, 1.1500f);
+    case 18: return mk(400.0000f, 1.0800f, 1.1500f, 0.0500f, 0.1000f, 0.1000f, 0.0010f, 0.5000f, 0.2000f, 0.0000f, 0.4500f, 1.1500f);
+    case 19: return mk(100.0000f, 1.0500f, 1.1000f, 0.1000f, 0.0500f, 0.0800f, 0.0010f, 0.4000f, 0.1000f, 0.0000f, 0.4000f, 0.7500f);
+    case 20: return mk(200.0000f, 1.0800f, 1.1500f, 0.2500f, 0.0500f, 0.1000f, 0.0010f, 0.5000f, 0.1500f, 0.0000f, 0.4500f, 1.0000f);
+    case 21: return mk(200.0000f, 1.1000f, 1.2000f, 0.4500f, 0.0000f, 0.1200f, 0.0010f, 0.5000f, 0.2000f, 0.0000f, 0.5000f, 1.0000f);
+    case 22: return mk(400.0000f, 1.0800f, 1.1800f, 0.2500f, 0.0500f, 0.1200f, 0.0010f, 0.5000f, 0.2000f, 0.0000f, 0.4500f, 1.1500f);
+    case 23: return mk(800.0000f, 1.0500f, 1.1200f, 0.2000f, 0.0500f, 0.1000f, 0.0020f, 0.6000f, 0.2500f, 0.0000f, 0.5000f, 1.4000f);
+    case 24: return mk(200.0000f, 1.0800f, 1.1500f, -0.1000f, 0.2500f, 0.1000f, 0.0010f, 0.5000f, 0.1500f, 0.0000f, 0.4000f, 0.9500f);
+    case 25: return mk(400.0000f, 1.0200f, 1.0000f, 0.0500f, 0.0000f, 0.0500f, 0.0020f, 0.5000f, 0.2000f, 0.0000f, 0.4500f, 1.2000f);
+    case 26: return mk(100.0000f, 1.1000f, 1.2000f, 0.0000f, 0.0500f, 0.1200f, 0.0010f, 0.4000f, 0.1000f, 0.0000f, 0.4000f, 0.7500f);
+    case 27: return mk(100.0000f, 1.1800f, 1.4000f, 0.1000f, 0.0000f, 0.1500f, 0.0000f, 0.4000f, 0.1000f, 0.0000f, 0.4000f, 0.5500f);
+    case 28: return mk(100.0000f, 1.2000f, 1.3500f, 0.0500f, 0.1000f, 0.2500f, 0.0030f, 0.5000f, 0.2000f, 0.0000f, 0.5000f, 1.1000f);
+    case 29: return mk(100.0000f, 1.1500f, 1.3500f, 0.0000f, -0.0500f, 0.2000f, 0.0020f, 0.5000f, 0.2000f, 0.0000f, 0.5000f, 0.8000f);
+    case 30: return mk(200.0000f, 1.2500f, 1.1000f, 0.3500f, -0.1500f, 0.3500f, 0.0060f, 0.8000f, 0.5000f, 0.0000f, 0.7000f, 1.8000f);
+    case 31: return mk(200.0000f, 0.9500f, 1.0000f, 0.3000f, 0.0500f, 0.0500f, 0.0050f, 0.5000f, 0.2000f, 0.0000f, 0.4500f, 1.0000f);
+    case 32: return mk(200.0000f, 1.0000f, 1.0500f, 0.1500f, 0.1000f, 0.1000f, 0.0040f, 0.5000f, 0.2000f, 0.0000f, 0.4500f, 1.0000f);
+    case 33: return mk(200.0000f, 1.0500f, 1.1000f, 0.0500f, 0.1000f, 0.1200f, 0.0030f, 0.5000f, 0.2000f, 0.0000f, 0.4500f, 0.9500f);
+    case 34: return mk(800.0000f, 1.0000f, 1.0000f, -0.1000f, 0.1000f, 0.1000f, 0.0060f, 0.7000f, 0.3000f, 0.0000f, 0.5000f, 1.5000f);
+    case 35: return mk(100.0000f, 1.1000f, 1.0000f, 0.3000f, 0.2000f, 0.2000f, 0.0080f, 0.5000f, 0.2000f, 0.0000f, 0.4500f, 1.0000f);
+    case 36: return mk(200.0000f, 1.1500f, 1.2000f, -0.2500f, -0.1000f, 0.3000f, 0.0020f, 0.5000f, 0.2000f, 0.0000f, 0.4500f, 1.1000f);
+    case 37: return mk(400.0000f, 1.1500f, 1.1500f, -0.5000f, -0.6000f, 0.5000f, 0.0040f, 0.7000f, 0.3000f, 0.0000f, 0.6000f, 1.5000f);
+    case 38: return mk(200.0000f, 1.1500f, 1.1500f, 0.9000f, -0.3000f, 0.4000f, 0.0050f, 0.9000f, 0.4000f, 0.0000f, 0.9000f, 1.5000f);
+    case 39: return mk(100.0000f, 1.1000f, 1.2000f, 0.0000f, -0.2000f, 0.3000f, 0.0030f, 0.5000f, 0.2000f, 0.0000f, 0.5000f, 0.9000f);
+    case 40: return mk(400.0000f, 1.1000f, 0.7000f, -0.2500f, 0.1500f, 0.2000f, 0.0040f, 0.6000f, 0.3000f, 0.0000f, 0.5000f, 1.4000f);
+    case 41: return mk(400.0000f, 1.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0010f, 0.4000f, 0.2000f, 1.0000f, 0.4000f, 0.9000f);
+    case 42: return mk(50.0000f, 1.0000f, 1.0500f, 0.0500f, 0.0500f, 0.1000f, 0.0030f, 0.7000f, 0.3000f, 0.0000f, 0.5000f, 0.6500f);
+    case 43: return mk(200.0000f, 1.0000f, 1.0000f, -0.0500f, 0.0500f, 0.1000f, 0.0030f, 0.7000f, 0.3000f, 0.0000f, 0.5000f, 0.9000f);
+    case 44: return mk(250.0000f, 1.0200f, 1.0500f, 0.0500f, 0.0500f, 0.1000f, 0.0030f, 0.7000f, 0.3000f, 0.0000f, 0.5000f, 0.9500f);
+    case 45: return mk(500.0000f, 1.0000f, 1.0000f, -0.0500f, 0.0500f, 0.1000f, 0.0030f, 0.7000f, 0.3000f, 0.0000f, 0.5000f, 1.1500f);
+    case 46: return mk(500.0000f, 0.9500f, 0.9500f, -0.0500f, 0.0500f, 0.1000f, 0.0030f, 0.7000f, 0.3000f, 0.0000f, 0.5000f, 1.1000f);
+    case 47: return mk(500.0000f, 1.1000f, 0.9000f, -0.1000f, 0.0500f, 0.1000f, 0.0030f, 0.7000f, 0.3000f, 0.0000f, 0.5000f, 1.3000f);
+    case 48: return mk(500.0000f, 1.0500f, 0.8000f, -0.1000f, 0.0500f, 0.1000f, 0.0030f, 0.7000f, 0.3000f, 0.0000f, 0.5000f, 1.2000f);
+    case 49: return mk(200.0000f, 1.0500f, 1.0500f, -0.0500f, 0.0500f, 0.1000f, 0.0030f, 0.7000f, 0.3000f, 0.0000f, 0.5000f, 1.0000f);
+    case 50: return mk(250.0000f, 1.0800f, 1.0500f, 0.0500f, 0.0500f, 0.1000f, 0.0030f, 0.7000f, 0.3000f, 0.0000f, 0.5000f, 1.0500f);
+    case 51: return mk(320.0000f, 1.0500f, 1.0500f, -0.0500f, 0.0500f, 0.1000f, 0.0030f, 0.7000f, 0.3000f, 0.0000f, 0.5000f, 1.1000f);
+    case 52: return mk(500.0000f, 1.0500f, 1.0500f, -0.0500f, 0.0500f, 0.1000f, 0.0030f, 0.7000f, 0.3000f, 0.0000f, 0.5000f, 1.2500f);
+    case 53: return mk(500.0000f, 1.0500f, 0.8500f, -0.1000f, 0.0500f, 0.1000f, 0.0030f, 0.7000f, 0.3000f, 0.0000f, 0.5000f, 1.3000f);
+    case 54: return mk(100.0000f, 1.1000f, 1.1000f, 0.0000f, 0.0500f, 0.1000f, 0.0030f, 0.7000f, 0.3000f, 0.0000f, 0.5000f, 0.8500f);
+    case 55: return mk(50.0000f, 1.1200f, 1.1500f, 0.1000f, 0.0500f, 0.1000f, 0.0030f, 0.7000f, 0.3000f, 0.0000f, 0.5000f, 0.7000f);
+    case 56: return mk(200.0000f, 1.1000f, 1.1000f, 0.0000f, 0.0500f, 0.1000f, 0.0030f, 0.7000f, 0.3000f, 0.0000f, 0.5000f, 1.0000f);
+    case 57: return mk(500.0000f, 1.1000f, 1.1000f, -0.0500f, 0.0500f, 0.1000f, 0.0030f, 0.7000f, 0.3000f, 0.0000f, 0.5000f, 1.3000f);
+    case 58: return mk(250.0000f, 0.9200f, 0.9000f, -0.1000f, 0.1000f, 0.0500f, 0.0040f, 0.5000f, 0.2000f, 0.0000f, 0.4000f, 1.2500f);
+    case 59: return mk(250.0000f, 0.9200f, 0.9200f, 0.0500f, 0.1000f, 0.0500f, 0.0040f, 0.5000f, 0.2000f, 0.0000f, 0.4000f, 1.2500f);
+    case 60: return mk(400.0000f, 0.9200f, 0.9000f, -0.1000f, 0.1000f, 0.0500f, 0.0040f, 0.5000f, 0.2000f, 0.0000f, 0.4000f, 1.4000f);
+    case 61: return mk(500.0000f, 0.9200f, 0.9000f, -0.1000f, 0.1000f, 0.0500f, 0.0040f, 0.5000f, 0.2000f, 0.0000f, 0.4000f, 1.5000f);
+    case 62: return mk(160.0000f, 1.0800f, 1.2500f, -0.0500f, 0.0500f, 0.1200f, 0.0020f, 0.5000f, 0.2000f, 0.0000f, 0.4000f, 1.0600f);
+    case 63: return mk(250.0000f, 1.0800f, 1.2500f, -0.0500f, 0.0500f, 0.1200f, 0.0020f, 0.5000f, 0.2000f, 0.0000f, 0.4000f, 1.1500f);
+    case 64: return mk(500.0000f, 1.0800f, 1.2500f, -0.0500f, 0.0500f, 0.1200f, 0.0020f, 0.5000f, 0.2000f, 0.0000f, 0.4000f, 1.4000f);
+    case 65: return mk(250.0000f, 1.1200f, 1.2000f, 0.0000f, 0.1500f, 0.1500f, 0.0020f, 0.5000f, 0.2000f, 0.0000f, 0.4000f, 1.0500f);
+    case 66: return mk(250.0000f, 1.1200f, 1.2000f, 0.0000f, 0.1500f, 0.1500f, 0.0020f, 0.5000f, 0.2000f, 0.0000f, 0.4000f, 1.0500f);
+    case 67: return mk(64.0000f, 1.1200f, 1.2000f, 0.0000f, 0.1500f, 0.1500f, 0.0020f, 0.5000f, 0.2000f, 0.0000f, 0.4000f, 0.8640f);
+    case 68: return mk(64.0000f, 1.1200f, 1.2000f, 0.0000f, 0.1500f, 0.1500f, 0.0020f, 0.5000f, 0.2000f, 0.0000f, 0.4000f, 0.8640f);
+    case 69: return mk(500.0000f, 1.1200f, 1.2000f, 0.0000f, 0.1500f, 0.1500f, 0.0020f, 0.5000f, 0.2000f, 0.0000f, 0.4000f, 1.3000f);
+    case 70: return mk(500.0000f, 1.0000f, 1.1000f, 0.0000f, 0.1000f, 0.1000f, 0.0020f, 0.6000f, 0.2000f, 0.0000f, 0.4500f, 1.1000f);
+    case 71: return mk(125.0000f, 1.1000f, 0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0020f, 0.4000f, 0.2000f, 1.0000f, 0.4000f, 0.9000f);
+    case 72: return mk(100.0000f, 1.1800f, 1.2000f, -0.0500f, 0.0000f, 0.0500f, 0.0000f, 0.4000f, 0.1000f, 0.0000f, 0.4000f, 0.6000f);
+    case 73: return mk(100.0000f, 1.2800f, 1.5500f, 0.0000f, 0.0000f, 0.1500f, 0.0000f, 0.4000f, 0.1000f, 0.0000f, 0.4000f, 0.5500f);
+    case 74: return mk(50.0000f, 1.3500f, 1.7000f, 0.0500f, -0.0500f, 0.1800f, 0.0000f, 0.4000f, 0.1000f, 0.0000f, 0.4000f, 0.4500f);
+    case 75: return mk(100.0000f, 1.1500f, 1.2500f, 0.0000f, 0.0000f, 0.0800f, 0.0000f, 0.4000f, 0.1000f, 0.0000f, 0.4000f, 0.6000f);
+    case 76: return mk(100.0000f, 1.0500f, 0.9500f, 0.3000f, 0.3500f, 0.3500f, 0.0120f, 0.6000f, 0.3000f, 0.0000f, 0.5000f, 1.5000f);
+    case 77: return mk(800.0000f, 1.2500f, 1.1000f, 0.0500f, 0.1500f, 0.1000f, 0.0100f, 0.5000f, 0.4000f, 0.0000f, 0.4000f, 1.6000f);
+    case 78: return mk(800.0000f, 1.2500f, 0.0000f, 0.0500f, 0.0000f, 0.0000f, 0.0120f, 0.4000f, 0.4000f, 1.0000f, 0.4000f, 1.6000f);
+    case 79: return mk(400.0000f, 1.0500f, 0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0010f, 0.3500f, 0.2000f, 1.0000f, 0.4000f, 1.1000f);
+    case 80: return mk(400.0000f, 1.0800f, 0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0010f, 0.3500f, 0.2000f, 1.0000f, 0.4000f, 0.8000f);
+    case 81: return mk(400.0000f, 1.1000f, 0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0010f, 0.3500f, 0.2000f, 1.0000f, 0.4000f, 0.7500f);
+    case 82: return mk(400.0000f, 1.1500f, 0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0010f, 0.3500f, 0.2000f, 1.0000f, 0.4000f, 1.3000f);
+    case 83: return mk(400.0000f, 1.0500f, 0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0010f, 0.3500f, 0.2000f, 1.0000f, 0.4000f, 1.1000f);
+    case 84: return mk(400.0000f, 1.0800f, 0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0010f, 0.3500f, 0.2000f, 1.0000f, 0.4000f, 1.0000f);
+    case 85: return mk(400.0000f, 1.1200f, 0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0010f, 0.3500f, 0.2000f, 1.0000f, 0.4000f, 1.2500f);
+    case 86: return mk(400.0000f, 1.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0010f, 0.7000f, 0.5000f, 3.0000f, 0.4000f, 1.1000f);
+    case 87: return mk(400.0000f, 1.1500f, 0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0010f, 0.3500f, 0.2000f, 1.0000f, 0.4000f, 1.2000f);
+    case 88: return mk(400.0000f, 1.0500f, 0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0010f, 0.3500f, 0.2000f, 1.0000f, 0.4000f, 1.4000f);
+    case 89: return mk(3200.0000f, 1.1000f, 0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0010f, 0.3500f, 0.2000f, 1.0000f, 0.4000f, 1.5000f);
+    case 90: return mk(3200.0000f, 1.1200f, 0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0010f, 0.3500f, 0.2000f, 1.0000f, 0.4000f, 1.7000f);
+    case 91: return mk(100.0000f, 1.1200f, 0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0010f, 0.3500f, 0.2000f, 1.0000f, 0.4000f, 0.5000f);
+    case 92: return mk(125.0000f, 1.0500f, 0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0010f, 0.3500f, 0.2000f, 1.0000f, 0.4000f, 0.6000f);
+    case 93: return mk(100.0000f, 1.1200f, 0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0010f, 0.3500f, 0.2000f, 1.0000f, 0.4000f, 0.4500f);
+    case 94: return mk(50.0000f, 1.1500f, 0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0010f, 0.3500f, 0.2000f, 1.0000f, 0.4000f, 0.4000f);
+    case 95: return mk(200.0000f, 1.1500f, 0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0010f, 0.8000f, 0.6000f, 3.0000f, 0.4000f, 1.0000f);
+    case 96: return mk(250.0000f, 1.0500f, 0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0010f, 1.4000f, 0.7000f, 1.0000f, 0.4000f, 0.9000f);
+    case 97: return mk(100.0000f, 1.1800f, 0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0010f, 0.3500f, 0.2000f, 1.0000f, 0.4000f, 0.5000f);
+    case 98: return mk(80.0000f, 1.3000f, 0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0010f, 0.3500f, 0.2000f, 2.0000f, 0.4000f, 0.6000f);
+    case 99: return mk(100.0000f, 1.1800f, 0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0010f, 0.3500f, 0.2000f, 1.0000f, 0.4000f, 0.7000f);
+    case 100: return mk(64.0000f, 1.3000f, 0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0010f, 0.3500f, 0.2000f, 1.0000f, 0.4000f, 0.5000f);
+
+    default: return mk(250.0f,1.0f,1.0f,0.0f,0.0f,0.0f,0.0f,0.6f,0.2f,0.0f,0.45f,1.0f);
+  }
+}
+
+// ============================ SAMPLING ======================================
+__DEVICE__ float3 fetchEnc(__TEXTURE__ tr, __TEXTURE__ tg, __TEXTURE__ tb, int x, int y, int w, int h){
+  x = x < 0 ? 0 : (x > w - 1 ? w - 1 : x); y = y < 0 ? 0 : (y > h - 1 ? h - 1 : y);
+  return make_float3(_tex2D(tr, x, y), _tex2D(tg, x, y), _tex2D(tb, x, y));
+}
+__DEVICE__ float3 bilEnc(__TEXTURE__ tr, __TEXTURE__ tg, __TEXTURE__ tb, float x, float y, int w, int h){
+  float fx = _floor(x), fy = _floor(y); float ux = x - fx, uy = y - fy; int ix = (int)fx, iy = (int)fy;
+  float3 a = fetchEnc(tr, tg, tb, ix, iy, w, h), b = fetchEnc(tr, tg, tb, ix + 1, iy, w, h);
+  float3 c = fetchEnc(tr, tg, tb, ix, iy + 1, w, h), d = fetchEnc(tr, tg, tb, ix + 1, iy + 1, w, h);
+  return make_float3(lerpf(lerpf(a.x, b.x, ux), lerpf(c.x, d.x, ux), uy), lerpf(lerpf(a.y, b.y, ux), lerpf(c.y, d.y, ux), uy), lerpf(lerpf(a.z, b.z, ux), lerpf(c.z, d.z, ux), uy));
+}
+
+#if FEAT_DUST
+// ============================ DUST ==========================================
+// returns (darkMask, lightMask)
+__DEVICE__ float2 specks(float px, float py, float cell, int fr, int layer, float prob, float rad, float lightProb){
+  int cx = (int)_floor(px / cell), cy = (int)_floor(py / cell);
+  int L = layer * 977;
+  if (hash3(cx + L, cy, fr * 8 + 1) > prob) return make_float2(0.0f, 0.0f);
+  float ox = (float)cx + 0.3f + 0.4f * hash3(cx + L, cy, fr * 8 + 2);
+  float oy = (float)cy + 0.3f + 0.4f * hash3(cx + L, cy, fr * 8 + 3);
+  float r1 = hash3(cx + L, cy, fr * 8 + 4);
+  float r = _fminf(rad * (0.35f + 1.8f * r1 * r1), cell * 0.26f);
+  float dx = px - ox * cell, dy = py - oy * cell;
+  float d = _sqrtf(dx * dx + dy * dy);
+  d += (gnoise(px, py, r * 0.8f + 0.5f, r * 0.8f + 0.5f, 31 + L, fr, 1.0f)) * r * 0.22f;
+  float m = (1.0f - sstep(r * 0.35f, r, d)) * (0.4f + 0.6f * hash3(cx + L, cy, fr * 8 + 6));
+  float lt = hash3(cx + L, cy, fr * 8 + 5) < lightProb ? 1.0f : 0.0f;
+  return make_float2(m * (1.0f - lt), m * lt);
+}
+__DEVICE__ float2 hairs(float px, float py, float cell, int fr, float prob, float res, float lightProb){
+  int cx = (int)_floor(px / cell), cy = (int)_floor(py / cell);
+  if (hash3(cx, cy, fr * 8 + 11) > prob) return make_float2(0.0f, 0.0f);
+  float ccx = ((float)cx + 0.35f + 0.3f * hash3(cx, cy, fr * 8 + 12)) * cell;
+  float ccy = ((float)cy + 0.35f + 0.3f * hash3(cx, cy, fr * 8 + 13)) * cell;
+  float th = hash3(cx, cy, fr * 8 + 14) * 3.14159265f;
+  float len = (40.0f + 110.0f * hash3(cx, cy, fr * 8 + 15)) * res;
+  float sag = (hash3(cx, cy, fr * 8 + 16) - 0.5f) * 2.0f * (0.12f + 0.2f * hash3(cx, cy, fr * 8 + 17));
+  float kap = sag * 4.0f / len;
+  float dx = px - ccx, dy = py - ccy;
+  float ct = _cosf(th), st = _sinf(th);
+  float u = dx * ct + dy * st, v = -dx * st + dy * ct;
+  if (_fabs(u) > len * 0.5f) return make_float2(0.0f, 0.0f);
+  v += _sinf(u * 0.22f / res + hash3(cx, cy, fr * 8 + 18) * 6.28f) * 0.9f * res;
+  float d = _fabs(v - kap * u * u) / _sqrtf(1.0f + 4.0f * kap * kap * u * u);
+  float w = (0.8f + 0.5f * hash3(cx, cy, fr * 8 + 19)) * res;
+  float m = (1.0f - sstep(0.0f, w, d)) * (1.0f - sstep(0.38f * len, 0.5f * len, _fabs(u)));
+  float lt = hash3(cx, cy, fr * 8 + 20) < lightProb ? 1.0f : 0.0f;
+  return make_float2(m * (1.0f - lt), m * lt);
+}
+__DEVICE__ float2 scratches(float px, float py, float W, float H, float res, int fr, float prob, float lightProb){
+  float bw = 70.0f * res;
+  int bx = (int)_floor(px / bw);
+  if (hash3(bx, 5, fr * 8 + 21) > prob) return make_float2(0.0f, 0.0f);
+  float x0 = ((float)bx + 0.25f + 0.5f * hash3(bx, 5, fr * 8 + 22)) * bw;
+  x0 += (vn1(py / (260.0f * res), bx * 13 + fr) - 0.5f) * 3.5f * res;
+  float lenF = 0.3f + 0.7f * hash3(bx, 5, fr * 8 + 23);
+  float ys = hash3(bx, 5, fr * 8 + 24) * H * (1.0f - lenF);
+  float ye = ys + lenF * H;
+  float w = (0.7f + 0.8f * hash3(bx, 5, fr * 8 + 25)) * res;
+  float m = (1.0f - sstep(0.0f, w, _fabs(px - x0))) * sstep(ys, ys + 20.0f * res, py) * (1.0f - sstep(ye - 20.0f * res, ye, py));
+  m *= 0.55f + 0.45f * vn1(py / (30.0f * res), bx + 99);
+  float lt = hash3(bx, 5, fr * 8 + 26) < lightProb ? 1.0f : 0.0f;
+  return make_float2(m * (1.0f - lt), m * lt);
+}
+
+
+#endif// ============================ GRAIN ZONES ===================================
+__DEVICE__ float zonePick(int i, float a0, float a1, float a2, float a3, float a4, float a5, float a6, float a7, float a8){
+  switch(i){ case 0: return a0; case 1: return a1; case 2: return a2; case 3: return a3; case 4: return a4; case 5: return a5; case 6: return a6; case 7: return a7; default: return a8; }
+}
+
+// ============================ PIXEL LOGO ====================================
+__DEVICE__ int glyphRow(int ch,int row){
+  switch(ch*8+row){
+    case 0: return 31;
+    case 1: return 16;
+    case 2: return 16;
+    case 3: return 30;
+    case 4: return 16;
+    case 5: return 16;
+    case 6: return 16;
+    case 8: return 14;
+    case 9: return 4;
+    case 10: return 4;
+    case 11: return 4;
+    case 12: return 4;
+    case 13: return 4;
+    case 14: return 14;
+    case 16: return 16;
+    case 17: return 16;
+    case 18: return 16;
+    case 19: return 16;
+    case 20: return 16;
+    case 21: return 16;
+    case 22: return 31;
+    case 24: return 17;
+    case 25: return 27;
+    case 26: return 21;
+    case 27: return 21;
+    case 28: return 17;
+    case 29: return 17;
+    case 30: return 17;
+    case 32: return 31;
+    case 33: return 16;
+    case 34: return 16;
+    case 35: return 30;
+    case 36: return 16;
+    case 37: return 16;
+    case 38: return 31;
+    case 40: return 30;
+    case 41: return 17;
+    case 42: return 17;
+    case 43: return 30;
+    case 44: return 17;
+    case 45: return 17;
+    case 46: return 30;
+    case 48: return 31;
+    case 49: return 1;
+    case 50: return 2;
+    case 51: return 4;
+    case 52: return 8;
+    case 53: return 16;
+    case 54: return 31;
+    case 56: return 0;
+    case 57: return 4;
+    case 58: return 4;
+    case 59: return 31;
+    case 60: return 4;
+    case 61: return 4;
+    case 62: return 0;
+    case 64: return 0;
+    case 65: return 0;
+    case 66: return 0;
+    case 67: return 0;
+    case 68: return 0;
+    case 69: return 0;
+    case 70: return 0;
+    default: return 0;
+  }
+}
+
+#if FEAT_LOGO
+__DEVICE__ int logoId(int i){
+  switch(i){ case 0: return 0; case 1: return 1; case 2: return 2; case 3: return 3; case 4: return 8; case 5: return 2; case 6: return 4; case 7: return 5; case 8: return 6; default: return 7; }
+}
+__DEVICE__ float logoMask(float x, float yTop, float s, float ox, float oy){
+  float u = (x - ox) / s, v = (yTop - oy) / s;
+  if (u < 0.0f || v < 0.0f || v >= 7.0f || u >= 60.0f) return 0.0f;
+  int c = (int)_floor(u), r = (int)_floor(v);
+  int ci = c / 6, cc = c - ci * 6;
+  if (cc >= 5) return 0.0f;
+  int bits = glyphRow(logoId(ci), r);
+  return (float)((bits >> (4 - cc)) & 1);
+}
+
+
+#endif// ============================================================================
+//                                  MAIN
+// ============================================================================
+__DEVICE__ float3 transform(int p_Width, int p_Height, int p_X, int p_Y, __TEXTURE__ p_TexR, __TEXTURE__ p_TexG, __TEXTURE__ p_TexB)
+{
+  const float W = (float)p_Width, H = (float)p_Height, res = W / 1920.0f;
+  const float px = (float)p_X, py = (float)p_Y;
+  const int frame = CURRENT_FRAME;
+  const bool fx = (lutBake == 0);
+  const float3 YW = make_float3(0.27411851f, 0.87363190f, -0.14775041f); // DWG luma
+  const float3 YD = make_float3(0.2126f, 0.7152f, 0.0722f);
+
+
+  // ---- look preset + gauge ----
+  int gI = gauge; float mG = 1.0f, mH = 1.0f, mA = 1.0f, mW = 1.0f, mF = 1.0f, mD = 1.0f; bool lk = (look > 0);
+  if (look == 1){ gI = 2; mG = 0.3f; mH = 0.35f; mA = 0.0f; mW = 0.0f; mF = 0.0f; mD = 0.0f; }
+  else if (look == 2){ gI = 2; mG = 1.0f; mH = 1.0f; mA = 0.8f; mW = 0.5f; mF = 0.0f; mD = 0.0f; }
+  else if (look == 3){ gI = 1; mG = 1.0f; mH = 1.0f; mA = 1.0f; mW = 1.0f; mF = 0.8f; mD = 0.5f; }
+  else if (look == 4){ gI = 0; mG = 1.0f; mH = 1.2f; mA = 1.0f; mW = 1.0f; mF = 1.0f; mD = 1.0f; }
+  else if (look == 5){ gI = 4; mG = 0.7f; mH = 0.8f; mA = 0.5f; mW = 0.3f; mF = 0.0f; mD = 0.0f; }
+  else if (look == 6){ gI = 2; mG = 1.2f; mH = 1.3f; mA = 1.0f; mW = 1.0f; mF = 0.5f; mD = 1.0f; }
+  const bool halE = lk ? (mH > 0.0f) : (halOn != 0);
+  const bool auraE = lk ? (mA > 0.0f) : (auraOn != 0);
+  const bool grE = lk ? (mG > 0.0f) : (grOn != 0);
+  const bool gwE = lk ? (mW > 0.0f) : (gwAmount > 0.0f);
+  const bool flE = lk ? (mF > 0.0f) : (flAmount > 0.0f);
+  const bool dsE = lk ? (mD > 0.0f) : (dustAmt > 0.0f || dustScratch > 0.0f);
+  const bool acE = (acuOn != 0);
+
+  float lkShA = 0.0f, lkShH = 200.0f, lkHiA = 0.0f, lkHiH = 40.0f, lkCon = 0.0f, lkSat = 1.0f;
+  if (look == 2){ lkShA = 0.45f; lkShH = 195.0f; lkHiA = 0.40f; lkHiH = 35.0f; lkCon = 0.18f; lkSat = 0.95f; }
+  else if (look == 3){ lkShA = 0.40f; lkShH = 170.0f; lkHiA = 0.35f; lkHiH = 45.0f; lkCon = 0.22f; lkSat = 0.90f; }
+  else if (look == 4){ lkShA = 0.20f; lkShH = 200.0f; lkHiA = 0.45f; lkHiH = 40.0f; lkCon = 0.12f; lkSat = 1.05f; }
+  else if (look == 5){ lkShA = 0.25f; lkShH = 200.0f; lkHiA = 0.20f; lkHiH = 40.0f; lkCon = 0.12f; lkSat = 1.0f; }
+  else if (look == 6){ lkShA = 0.35f; lkShH = 160.0f; lkHiA = 0.45f; lkHiH = 50.0f; lkCon = 0.05f; lkSat = 0.90f; }
+  lkShA *= lookAmt; lkHiA *= lookAmt; lkCon *= lookAmt; lkSat = lerpf(1.0f, lkSat, lookAmt);
+  Stock st = getStock(stock);
+
+  float frameMm = 21.9f;
+  float gwBase = 0.035f;
+  if (gI == 0){ frameMm = 4.5f;  gwBase = 0.22f; }
+  else if (gI == 1){ frameMm = 10.3f; gwBase = 0.10f; }
+  else if (gI == 2){ frameMm = 21.9f; gwBase = 0.035f; }
+  else if (gI == 3){ frameMm = 37.7f; gwBase = 0.03f; }
+  else { frameMm = 52.5f; gwBase = 0.02f; }
+  const float gfac = 21.9f / frameMm;
+  const float pp = pushpull;
+
+  // ---- gate weave (sampling position) ----
+  float sx = px, sy = py;
+#if FEAT_WEAVE
+  if (fx && gwE){
+    float sm = 1.0f, jm = 1.0f;
+    if (gwStyle == 0){ sm = 0.4f; jm = 0.5f; } else if (gwStyle == 2){ sm = 2.0f; jm = 1.4f; } else if (gwStyle == 3){ sm = 2.5f; jm = 2.5f; }
+    float gwA = (gwAmount > 0.0f) ? gwAmount : 1.0f;
+    float amp = gwBase * 0.01f * W * gwA * sm * mW;
+    float t = (float)frame * gwSpeed;
+    float swX = (vn1(t, 11) - 0.5f) * 2.0f + 0.5f * (vn1(t * 2.7f, 13) - 0.5f) * 2.0f;
+    float swY = (vn1(t, 17) - 0.5f) * 2.0f + 0.5f * (vn1(t * 2.3f, 19) - 0.5f) * 2.0f;
+    float swR = (vn1(t * 0.8f, 23) - 0.5f) * 2.0f;
+    float jX = (hash3(frame, 29, 3) - 0.5f) * 2.0f, jY = (hash3(frame, 31, 3) - 0.5f) * 2.0f, jR = (hash3(frame, 37, 3) - 0.5f) * 2.0f;
+    float jx = gwJitter * jm;
+    jx = _fminf(jx, 1.0f);
+    float dx = amp * (swX * (1.0f - jx) + jX * jx * 0.5f) * gwH;
+    float dy = amp * 0.6f * (swY * (1.0f - jx) + jY * jx * 0.5f) * gwV;
+    float rot = (swR * (1.0f - jx) + jR * jx * 0.5f) * 0.0012f * gwRot * sm * mW;
+    float cx = W * 0.5f, cy = H * 0.5f, rx = px - cx, ry = py - cy;
+    float ca = _cosf(rot), sa = _sinf(rot);
+    sx = cx + ca * rx + sa * ry - dx;
+    sy = cy - sa * rx + ca * ry - dy;
+  }
+
+#endif
+  // ---- flicker ----
+  float flStops = 0.0f;
+  if (fx && flE){
+    float rnd = (hash3(frame, 41, 5) - 0.5f) * 2.0f;
+    float brt = (vn1((float)frame * flSpeed, 43) - 0.5f) * 2.0f + 0.5f * (vn1((float)frame * flSpeed * 2.9f, 47) - 0.5f) * 2.0f;
+    flStops = ((flAmount > 0.0f) ? flAmount : 0.3f) * 0.5f * mF * (rnd * (1.0f - flStyle) + brt * flStyle);
+  }
+
+  // ---- lens distortion ----
+  if (fx && lensK != 0.0f){
+    float lhx = W * 0.5f, lhy = H * 0.5f;
+    float lrx = (sx - lhx) / lhx, lry = (sy - lhy) / lhx;
+    float lf = 1.0f + lensK * 0.35f * (lrx * lrx + lry * lry);
+    sx = lhx + lrx * lf * lhx; sy = lhy + lry * lf * lhx;
+  }
+  // ---- center sample (+ chroma, acutance on encoded signal) ----
+  float3 enc = bilEnc(p_TexR, p_TexG, p_TexB, sx, sy, p_Width, p_Height);
+  if (fx && lensCA > 0.0f){
+    float chx = W * 0.5f, chy = H * 0.5f, cof = lensCA * 0.006f;
+    float cdx = sx - chx, cdy = sy - chy;
+    float3 eR = bilEnc(p_TexR, p_TexG, p_TexB, chx + cdx * (1.0f + cof), chy + cdy * (1.0f + cof), p_Width, p_Height);
+    float3 eB = bilEnc(p_TexR, p_TexG, p_TexB, chx + cdx * (1.0f - cof), chy + cdy * (1.0f - cof), p_Width, p_Height);
+    enc = make_float3(eR.x, enc.y, eB.z);
+  }
+#if FEAT_ACUTANCE
+  if (fx && acE){
+    int icx = (int)(sx + 0.5f), icy = (int)(sy + 0.5f);
+    float cy0 = luma3(enc, YD);
+    float rF = 1.3f * res * acuSize, rC = 9.0f * res * acuSize;
+    float mF8 = cy0, mC12 = cy0;
+    for (int i = 0; i < 8; i++){
+      float a = (float)i * 0.785398f;
+      mF8 += luma3(fetchEnc(p_TexR, p_TexG, p_TexB, icx + (int)(_cosf(a) * rF + 0.5f), icy + (int)(_sinf(a) * rF + 0.5f), p_Width, p_Height), YD);
+    }
+    for (int j = 0; j < 12; j++){
+      float a = (float)j * 0.523599f + 0.2f;
+      mC12 += luma3(fetchEnc(p_TexR, p_TexG, p_TexB, icx + (int)(_cosf(a) * rC + 0.5f), icy + (int)(_sinf(a) * rC + 0.5f), p_Width, p_Height), YD);
+    }
+    float dF = cy0 - mF8 / 9.0f, dC = cy0 - mC12 / 13.0f;
+    float wF = lerpf(1.0f, clamp01(_fabs(dF) * 8.0f), acuEdge), wC = lerpf(1.0f, clamp01(_fabs(dC) * 8.0f), acuEdge);
+    float add = acuFine * dF * wF * 1.5f + acuCoarse * dC * wC * 1.5f;
+    enc = make_float3(enc.x + add, enc.y + add, enc.z + add);
+  }
+
+#endif
+  // ---- film lens blur (soft lens, edges softer, optional color fringing) ----
+  if (fx && blurAmt > 0.0f){
+    float dxn = (px - W * 0.5f) / (W * 0.5f), dyn = (py - H * 0.5f) / (H * 0.5f);
+    float r2 = (dxn * dxn + dyn * dyn) * 0.5f;
+    float R = blurAmt * res * (1.0f + blurEdge * r2 * 2.0f);
+    int bcx = (int)(sx + 0.5f), bcy = (int)(sy + 0.5f);
+    float accR = enc.x, accG = enc.y, accB = enc.z, ws = 1.0f;
+    float caR = 1.0f + blurCA * 0.5f, caB = 1.0f - blurCA * 0.5f;
+    for (int i = 0; i < 24; i++){
+      float rr = _sqrtf(((float)i + 0.5f) / 24.0f); float a = (float)i * 2.3999632f;
+      float w = _expf(-2.2f * rr * rr); float r = rr * R;
+      float ca_ = _cosf(a), sa_ = _sinf(a);
+      if (blurCA > 0.0f){
+        float3 tR = fetchEnc(p_TexR, p_TexG, p_TexB, bcx + (int)(ca_ * r * caR + 0.5f), bcy + (int)(sa_ * r * caR + 0.5f), p_Width, p_Height);
+        float3 tG = fetchEnc(p_TexR, p_TexG, p_TexB, bcx + (int)(ca_ * r + 0.5f), bcy + (int)(sa_ * r + 0.5f), p_Width, p_Height);
+        float3 tB = fetchEnc(p_TexR, p_TexG, p_TexB, bcx + (int)(ca_ * r * caB + 0.5f), bcy + (int)(sa_ * r * caB + 0.5f), p_Width, p_Height);
+        accR += tR.x * w; accG += tG.y * w; accB += tB.z * w;
+      } else {
+        float3 tt = fetchEnc(p_TexR, p_TexG, p_TexB, bcx + (int)(ca_ * r + 0.5f), bcy + (int)(sa_ * r + 0.5f), p_Width, p_Height);
+        accR += tt.x * w; accG += tt.y * w; accB += tt.z * w;
+      }
+      ws += w;
+    }
+    enc = make_float3(accR / ws, accG / ws, accB / ws);
+  }
+
+  // ---- INPUT CST -> DaVinci Wide Gamut linear ----
+  float3 lin = toLin(enc, inEnc, inGamut, cstOn);
+
+  // ---- true exposure / white balance ----
+  float eg = _exp2f(exposure + flStops);
+  float3 gain = make_float3(eg * _exp2f(temperature * 0.004f), eg * _exp2f(-tintv * 0.004f), eg * _exp2f(-temperature * 0.004f));
+  lin = make_float3(lin.x * gain.x, lin.y * gain.y, lin.z * gain.z);
+
+  // ---- halation / aura (applied to scene exposure) ----
+  const int tapsN = (halQual == 0) ? 16 : ((halQual == 1) ? 32 : 56);
+  const float halS = halStrength * st.hal * mH;
+  const float auS = auraStrength * st.aura * mA;
+#if FEAT_HALATION
+  if (fx && (halE || auraE)){
+    int icx = (int)(sx + 0.5f), icy = (int)(sy + 0.5f);
+    if (halE){
+      float R = _fminf(0.006f * W * halRadius * gfac, 0.08f * W);
+      float hsum = 0.0f, wsum = 0.3f; float3 blur = make_float3(lin.x * 0.3f, lin.y * 0.3f, lin.z * 0.3f);
+      for (int i = 0; i < tapsN; i++){
+        float rr = ((float)i + 0.5f) / (float)tapsN; float a = (float)i * 2.3999632f;
+        float r = rr * R;
+        float3 l = toLin(fetchEnc(p_TexR, p_TexG, p_TexB, icx + (int)(_cosf(a) * r + 0.5f), icy + (int)(_sinf(a) * r + 0.5f), p_Width, p_Height), inEnc, inGamut, cstOn);
+        l = make_float3(l.x * gain.x, l.y * gain.y, l.z * gain.z);
+        float w = (0.15f + rr) * _expf(-4.0f * rr * rr);
+        hsum += w * _fmaxf(luma3(l, YW) - halThresh, 0.0f);
+        blur = make_float3(blur.x + l.x * w, blur.y + l.y * w, blur.z + l.z * w); wsum += w;
+      }
+      hsum /= wsum; blur = make_float3(blur.x / wsum, blur.y / wsum, blur.z / wsum);
+      float3 hc = make_float3(1.0f * halBiasR, lerpf(0.55f, 0.12f, st.red) * halBiasG, lerpf(0.12f, 0.01f, st.red) * halBiasB);
+      float hl = luma3(hc, YW); hc = make_float3(hl + (hc.x - hl) * halSat, hl + (hc.y - hl) * halSat, hl + (hc.z - hl) * halSat);
+      float k = hsum * halS * 0.45f;
+      float sf = halSoft * clamp01(halS) * 0.6f;
+      lin = make_float3(lerpf(lin.x, blur.x, sf) + hc.x * k, lerpf(lin.y, blur.y, sf) + hc.y * k, lerpf(lin.z, blur.z, sf) + hc.z * k);
+    }
+    if (auraE){
+      float R = _fminf(0.06f * W * auraRadius * _sqrtf(gfac), 0.35f * W);
+      float asum = 0.0f, wsum = 0.0001f;
+      for (int i = 0; i < tapsN * 2; i++){
+        float rr = ((float)i + 0.5f) / (float)(tapsN * 2); float a = (float)i * 2.3999632f + 1.0f;
+        float r = rr * R;
+        float3 l = toLin(fetchEnc(p_TexR, p_TexG, p_TexB, icx + (int)(_cosf(a) * r + 0.5f), icy + (int)(_sinf(a) * r + 0.5f), p_Width, p_Height), inEnc, inGamut, cstOn);
+        l = make_float3(l.x * gain.x, l.y * gain.y, l.z * gain.z);
+        float w = (0.1f + rr) * _expf(-2.6f * rr);
+        asum += w * _fmaxf(luma3(l, YW) - auraThresh, 0.0f); wsum += w;
+      }
+      asum /= wsum;
+      float3 ac = make_float3(1.0f, lerpf(0.35f, 0.9f, auraGreen), lerpf(0.05f, 0.25f, auraGreen));
+      float k = asum * auS * 0.6f;
+      lin = make_float3(lin.x + ac.x * k, lin.y + ac.y * k, lin.z + ac.z * k);
+    }
+  }
+
+#endif
+#if FEAT_HALATION
+  if (fx && streakAmt > 0.0f){
+    int stx = (int)(sx + 0.5f), sty = (int)(sy + 0.5f);
+    float Rl = 0.12f * W * streakLen; float ssum = 0.0f, swt = 0.0001f;
+    for (int i = 0; i < 24; i++){
+      float rr = ((float)i + 0.5f) / 24.0f; float w = _expf(-3.0f * rr); int off = (int)(rr * Rl);
+      float3 l1 = toLin(fetchEnc(p_TexR, p_TexG, p_TexB, stx + off, sty, p_Width, p_Height), inEnc, inGamut, cstOn);
+      float3 l2 = toLin(fetchEnc(p_TexR, p_TexG, p_TexB, stx - off, sty, p_Width, p_Height), inEnc, inGamut, cstOn);
+      l1 = make_float3(l1.x * gain.x, l1.y * gain.y, l1.z * gain.z); l2 = make_float3(l2.x * gain.x, l2.y * gain.y, l2.z * gain.z);
+      ssum += w * (_fmaxf(luma3(l1, YW) - 0.75f, 0.0f) + _fmaxf(luma3(l2, YW) - 0.75f, 0.0f)); swt += 2.0f * w;
+    }
+    float ks = (ssum / swt) * streakAmt * 1.2f;
+    lin = make_float3(lin.x + ks * 0.35f, lin.y + ks * 0.6f, lin.z + ks * 1.0f);
+  }
+#endif
+
+  // ---- mono stocks: spectral response ----
+  if (st.mono > 0.5f){
+    float3 mw = make_float3(0.27f, 0.62f, 0.11f);
+    if (st.mono > 1.5f && st.mono < 2.5f) mw = make_float3(0.04f, 0.50f, 0.46f);
+    else if (st.mono > 2.5f) mw = make_float3(0.55f, 0.32f, 0.13f);
+    if (bwFilt > 0.0f) mw = make_float3(lerpf(mw.x, 0.62f, bwFilt), lerpf(mw.y, 0.34f, bwFilt), lerpf(mw.z, 0.04f, bwFilt));
+    else if (bwFilt < 0.0f){ float bfk = -bwFilt; mw = make_float3(lerpf(mw.x, 0.04f, bfk), lerpf(mw.y, 0.36f, bfk), lerpf(mw.z, 0.60f, bfk)); }
+    float ym = _fmaxf(luma3(lin, mw), 0.0f);
+    lin = make_float3(ym, ym, ym);
+  }
+
+  // ---- NEGATIVE ----
+  const float xo = st.xover * printColor;
+  float3 ng = make_float3(_exp2f(0.20f * st.warm), _exp2f(0.12f * st.tint), _exp2f(-0.20f * st.warm));
+  if (st.mono > 0.5f) ng = make_float3(1.0f, 1.0f, 1.0f);
+  float3 x3 = make_float3(
+    _log10f(_fmaxf(lin.x * ng.x, 1e-6f) / 0.18f),
+    _log10f(_fmaxf(lin.y * ng.y, 1e-6f) / 0.18f),
+    _log10f(_fmaxf(lin.z * ng.z, 1e-6f) / 0.18f));
+  const float gn0 = 0.60f * (1.0f + 0.10f * pp);
+  const float ltn = _fmaxf(1.05f * (1.0f - 0.10f * pp), 0.4f), lsn = 1.6f;
+  float3 Dn = make_float3(
+    hd(x3.x, gn0 * (1.0f + 0.06f * xo), ltn, lsn),
+    hd(x3.y, gn0, ltn, lsn),
+    hd(x3.z, gn0 * (1.0f - 0.06f * xo), ltn, lsn));
+
+  // ---- PRINT / TELECINE ----
+  float gpS = 2.25f, ltS = 0.82f, lsS = 3.4f;
+  if (printStyle == 1){ gpS = 2.5f; ltS = 0.78f; lsS = 2.0f; }
+  else if (printStyle == 2){ gpS = 1.9f; ltS = 1.15f; lsS = 2.6f; }
+  const float gpT = 1.9f, ltT = 1.15f, lsT = 2.6f;
+  float gp = lerpf(gpS, gpT, tcBlend) * st.contrast * printContrast * (1.0f + 0.12f * _fmaxf(pp, 0.0f) * 0.5f + 0.06f * _fminf(pp, 0.0f)) * (1.0f - 0.12f * filmAge);
+  float lt = lerpf(ltS, ltT, tcBlend), ls = lerpf(lsS, lsT, tcBlend);
+  lt *= (1.0f + 0.45f * shoAmt); ls *= (1.0f - 0.35f * toeAmt);
+  const float dpc = 0.80f;
+  float3 pl = make_float3((plR + plM) * 0.025f, (plG + plM) * 0.025f, (plB + plM) * 0.025f);
+  float3 Dp = make_float3(
+    dpc + hd(-Dn.x + pl.x, gp * (1.0f + 0.08f * xo), lt, ls),
+    dpc + hd(-Dn.y + pl.y, gp, lt, ls),
+    dpc + hd(-Dn.z + pl.z, gp * (1.0f - 0.08f * xo), lt, ls));
+  float3 o = make_float3(_powf(10.0f, -Dp.x), _powf(10.0f, -Dp.y), _powf(10.0f, -Dp.z));
+
+  // base fog / push fog / black point
+  float lift = st.lift + 0.004f * _fmaxf(pp, 0.0f) - 0.0015f * _fmaxf(-pp, 0.0f) + 0.035f * filmAge;
+  float lr = lift * (1.0f - fogReduce);
+  o = make_float3(o.x * (1.0f - lr) + lr, o.y * (1.0f - lr) + lr, o.z * (1.0f - lr) + lr);
+  o = make_float3(o.x + blackPoint, o.y + blackPoint, o.z + blackPoint);
+
+  // ---- LAB ----
+  float yL = luma3(o, YW);
+  float mx = _fmaxf(o.x, _fmaxf(o.y, o.z)), mn = _fminf(o.x, _fminf(o.y, o.z));
+  float sMeas = (mx > 1e-5f) ? clamp01((mx - mn) / mx) : 0.0f;
+  float satT = (1.0f + (st.sat - 1.0f) * printColor) * richness * lkSat * (1.0f + 0.06f * pp) * (1.0f - 0.3f * filmAge);
+  if (st.mono > 0.5f) satT = 0.0f;
+  float vibF = 0.0f;
+  if (vibrance != 0.0f){
+    float hh = rgbHue(make_float3(o.x, o.y, o.z)); float hd_ = _fabs(hh - 28.0f); if (hd_ > 180.0f) hd_ = 360.0f - hd_;
+    float skin = _expf(-(hd_ / 24.0f) * (hd_ / 24.0f));
+    vibF = vibrance * (1.0f - sMeas) * (1.0f - 0.75f * skin);
+  }
+  float sTot = satT * (1.0f + vibF);
+  o = make_float3(yL + (o.x - yL) * sTot, yL + (o.y - yL) * sTot, yL + (o.z - yL) * sTot);
+  float dd = _exp2f(-hiSatDens * 1.2f * sMeas * sMeas);
+  o = make_float3(o.x * dd, o.y * dd, o.z * dd);
+  float hsA = hueShift + 0.4f * filmAge;
+  if (hsA != 0.0f){
+    float ha = 0.10f * hsA, hb = 0.08f * hsA;
+    o = make_float3((1.0f - ha) * o.x + ha * o.y, (1.0f - hb) * o.y + hb * o.z, o.z);
+  }
+  if (filmAge > 0.0f) o = make_float3(o.x * (1.0f + 0.07f * filmAge), o.y * (1.0f + 0.01f * filmAge), o.z * (1.0f - 0.14f * filmAge));
+  if (neutralize > 0.0f){
+    float yN = luma3(o, YW); float w = neutralize * (1.0f - sstep(0.0f, 0.25f, sMeas));
+    o = make_float3(lerpf(o.x, yN, w), lerpf(o.y, yN, w), lerpf(o.z, yN, w));
+  }
+  float labC = labContrast + lkCon;
+  if (labC != 0.0f){
+    float yC = _fmaxf(luma3(o, YW), 1e-5f);
+    float ce = 1.0f + 0.4f * labC; ce = 1.0f + (ce - 1.0f) * (1.0f - sstep(0.55f, 1.0f, yC));
+    float ratio = _powf(yC / 0.16f, ce - 1.0f);
+    o = make_float3(o.x * ratio, o.y * ratio, o.z * ratio);
+  }
+  o = splitTone(o, stShHue, stShAmt, stHiHue, stHiAmt, stBal, stSoft, YW);
+  if (lk) o = splitTone(o, lkShH, lkShA, lkHiH, lkHiA, 0.0f, 0.5f, YW);
+  if (st.mono > 0.5f) o = make_float3(o.x * (1.0f + 0.05f * st.warm), o.y, o.z * (1.0f - 0.05f * st.warm));
+
+  // ---- OUTPUT gamut ----
+  int og = 0; bool d60 = false; bool isHdr = false; bool isAces = false; float dgam = 2.4f;
+  if (outSpace == 1){ d60 = true; }
+  else if (outSpace == 2){ og = 1; dgam = 2.6f; }
+  else if (outSpace == 3){ og = 1; d60 = true; dgam = 2.6f; }
+  else if (outSpace == 4){ og = 2; }
+  else if (outSpace == 5 || outSpace == 6){ og = 2; isHdr = true; }
+  else if (outSpace == 7){ og = 3; isAces = true; }
+  float3 od = fromWorkM(o, og);
+  if (d60) od = d60M(od, og);
+  {
+    float3 yw = make_float3(0.2126f, 0.7152f, 0.0722f);
+    if (og == 1) yw = make_float3(0.2290f, 0.6917f, 0.0793f); else if (og == 2) yw = make_float3(0.2627f, 0.6780f, 0.0593f); else if (og == 3) yw = make_float3(0.2722f, 0.6741f, 0.0537f);
+    float yo = luma3(od, yw); float mnv = _fminf(od.x, _fminf(od.y, od.z));
+    if (mnv < 0.0f && yo > 0.0f){ float tt = clamp01(-mnv / (yo - mnv)); od = make_float3(od.x + (yo - od.x) * tt, od.y + (yo - od.y) * tt, od.z + (yo - od.z) * tt); }
+  }
+  if (fx && vigAmt > 0.0f){
+    float vx = (px - W * 0.5f) / (W * 0.5f), vy = (py - H * 0.5f) / (H * 0.5f);
+    float vr = _sqrtf(vx * vx + vy * vy) * 0.7071f;
+    float vg = 1.0f - vigAmt * sstep(vigSize, 1.05f, vr);
+    od = make_float3(od.x * vg, od.y * vg, od.z * vg);
+  }
+  if (fx && leakAmt > 0.0f){
+    int lkb = frame / 72;
+    float lside = (hash3(lkb, 71, 9) < 0.5f) ? 1.0f : 0.0f;
+    float ldd = (lside > 0.5f) ? px / W : 1.0f - px / W;
+    float lpulse = 0.35f + 0.65f * vn1((float)frame * 0.05f, 61);
+    float lshape = _expf(-ldd * 4.0f) * (0.65f + 0.35f * vn1(py / (H * 0.35f) + (float)lkb * 3.1f, 67));
+    float lk2 = leakAmt * lpulse * lshape * 0.9f;
+    od = make_float3(od.x + lk2, od.y + lk2 * 0.32f, od.z + lk2 * 0.06f);
+  }
+  od = make_float3(_fmaxf(od.x, 0.0f), _fmaxf(od.y, 0.0f), _fmaxf(od.z, 0.0f));
+  const float ig = 1.0f / dgam;
+  float3 code = make_float3(_powf(_fminf(od.x, 8.0f), ig), _powf(_fminf(od.y, 8.0f), ig), _powf(_fminf(od.z, 8.0f), ig));
+
+  // ---- GRAIN (in display code) ----
+  float yd = clamp01(luma3(code, YD));
+  float zw = 1.0f;
+  if (grE || zFalse != 0){
+    float v0, v1, v2, v3, v4, v5, v6, v7, v8;
+    if (zoneMode == 0){
+      v0 = zShadow; v1 = zShadow; v2 = lerpf(zShadow, zMid, 0.33f); v3 = lerpf(zShadow, zMid, 0.67f); v4 = zMid;
+      v5 = lerpf(zMid, zHigh, 0.33f); v6 = lerpf(zMid, zHigh, 0.67f); v7 = zHigh; v8 = zHigh;
+    } else { v0 = z0; v1 = z1; v2 = z2; v3 = z3; v4 = z4; v5 = z5; v6 = z6; v7 = z7; v8 = z8; }
+    if (v0 + v1 + v2 + v3 + v4 + v5 + v6 + v7 + v8 < 0.001f){ v0 = 0.5f; v1 = 0.8f; v2 = 1.0f; v3 = 1.1f; v4 = 1.0f; v5 = 0.85f; v6 = 0.65f; v7 = 0.45f; v8 = 0.25f; }
+    float tz = yd * 8.0f; int zi = (int)_floor(tz); if (zi > 7) zi = 7; float zf = tz - (float)zi;
+    zw = lerpf(zonePick(zi, v0, v1, v2, v3, v4, v5, v6, v7, v8), zonePick(zi + 1, v0, v1, v2, v3, v4, v5, v6, v7, v8), zf);
+  }
+#if FEAT_GRAIN
+  if (fx && grE){
+    float grainUm = 5.0f * _powf(st.iso / 200.0f, 0.35f);
+    float cell = _fmaxf(grainUm * W / (frameMm * 1000.0f) * grSize, 1.2f);
+    float cw = cell * grAnam;
+    float sigma = 0.048f * grAmount * st.grain * mG * _powf(st.iso / 200.0f, 0.25f) * _powf(gfac, 0.25f) * (1.0f + 0.25f * pp) * (1.0f + 0.6f * filmAge);
+    float rn = 1.0f / _sqrtf(1.0f + grRough * grRough);
+    float nm = gnoise(px, py, cw, cell, 1, frame, grSoft); nm = (nm + grRough * gnoise(px, py, cw * 0.5f, cell * 0.5f, 51, frame, grSoft)) * rn;
+    float nr = gnoise(px, py, cw, cell, 2, frame, grSoft); nr = (nr + grRough * gnoise(px, py, cw * 0.5f, cell * 0.5f, 52, frame, grSoft)) * rn;
+    float ngc = gnoise(px, py, cw, cell, 3, frame, grSoft); ngc = (ngc + grRough * gnoise(px, py, cw * 0.5f, cell * 0.5f, 53, frame, grSoft)) * rn;
+    float nb = gnoise(px, py, cw, cell, 4, frame, grSoft); nb = (nb + grRough * gnoise(px, py, cw * 0.5f, cell * 0.5f, 54, frame, grSoft)) * rn;
+    if (grStreak > 0.0f){
+      float sn = gnoise(px, py, cw, cell * grStreakLen, 90, frame, 1.0f) * grStreak;
+      nm += sn * 0.6f; nr += sn * 0.4f; ngc += sn * 0.4f; nb += sn * 0.4f;
+    }
+    float mxR = grMixR, mxG = grMixG, mxB = grMixB, gLt = grLight, gDk = grDark;
+    if (mxR + mxG + mxB < 0.001f){ mxR = 1.0f; mxG = 1.0f; mxB = 1.2f; }
+    if (gLt + gDk < 0.001f){ gLt = 1.0f; gDk = 1.0f; }
+    float gr = lerpf(nm, nr, grSat) * mxR, gg = lerpf(nm, ngc, grSat) * mxG, gb = lerpf(nm, nb, grSat) * mxB;
+    if (st.mono > 0.5f){ gr = nm; gg = nm; gb = nm; }
+    gr *= (gr > 0.0f) ? gLt : gDk; gg *= (gg > 0.0f) ? gLt : gDk; gb *= (gb > 0.0f) ? gLt : gDk;
+    float k = sigma * zw;
+    code = make_float3(code.x + gr * k, code.y + gg * k, code.z + gb * k);
+  }
+
+#endif
+  // ---- DUST / SCRATCH / HAIR ----
+#if FEAT_DUST
+  if (fx && dsE){
+    float dOn = (dustAmt > 0.0f || dustScratch > 0.0f) ? 1.0f : 0.0f;
+    float sA = (dOn > 0.5f) ? dustAmt : 1.0f; float scA = (dOn > 0.5f) ? dustScratch : 0.7f;
+    float pf = (dustProfile == 0) ? 0.25f : ((dustProfile == 1) ? 1.0f : ((dustProfile == 2) ? 2.4f : 4.5f));
+    int fd = frame / (int)dustHold, fs = frame / (int)scratchHold;
+    float lp = dustPolar;
+    float dark = 0.0f, light = 0.0f;
+    float2 s1 = specks(px, py, 90.0f * res, fd, 1, 0.16f * pf * sA * mD, 3.0f * res * dustSize, lp);
+    float2 s2 = specks(px, py, 260.0f * res, fd, 2, 0.02f * pf * sA * mD, 9.0f * res * dustSize, lp);
+    float2 hr = hairs(px, py, 300.0f * res, fd, 0.05f * pf * scA * mD, res, lp);
+    float2 sc = scratches(px, py, W, H, res, fs, 0.025f * pf * scA * mD, lp);
+    dark = _fmaxf(_fmaxf(s1.x, s2.x), _fmaxf(hr.x, sc.x));
+    light = _fmaxf(_fmaxf(s1.y, s2.y), _fmaxf(hr.y, sc.y));
+    float ds = 0.7f;
+    code = make_float3(code.x * (1.0f - dark * ds * 0.9f) + light * ds * 0.85f, code.y * (1.0f - dark * ds * 0.9f) + light * ds * 0.85f, code.z * (1.0f - dark * ds * 0.9f) + light * ds * 0.85f);
+  }
+
+#endif
+  // ---- false colour for zones ----
+  if (zFalse != 0){
+    int zc = (int)_floor(yd * 8.0f + 0.5f);
+    float3 fc = make_float3(0.2f, 0.0f, 0.4f);
+    if (zc == 1) fc = make_float3(0.1f, 0.1f, 0.8f); else if (zc == 2) fc = make_float3(0.0f, 0.5f, 0.9f);
+    else if (zc == 3) fc = make_float3(0.0f, 0.7f, 0.5f); else if (zc == 4) fc = make_float3(0.3f, 0.7f, 0.2f);
+    else if (zc == 5) fc = make_float3(0.8f, 0.8f, 0.1f); else if (zc == 6) fc = make_float3(0.95f, 0.55f, 0.1f);
+    else if (zc == 7) fc = make_float3(0.9f, 0.2f, 0.15f); else if (zc >= 8) fc = make_float3(1.0f, 0.6f, 0.7f);
+    code = fc;
+  }
+
+  // ---- back to linear, final encode ----
+  float3 fin;
+  float3 lo = make_float3(_powf(_fmaxf(code.x, 0.0f), dgam), _powf(_fmaxf(code.y, 0.0f), dgam), _powf(_fmaxf(code.z, 0.0f), dgam));
+  if (isAces){
+    fin = make_float3(acesCct(lo.x * 1.125f), acesCct(lo.y * 1.125f), acesCct(lo.z * 1.125f));
+  } else if (!isHdr){
+    fin = make_float3(clamp01(_powf(lo.x, ig)), clamp01(_powf(lo.y, ig)), clamp01(_powf(lo.z, ig)));
+  } else {
+    float pk = hdrPeak / 100.0f;
+    float ex = (pk - 1.0f) * hdrUnroll / 0.4f;
+    float vx = lo.x, vy = lo.y, vz = lo.z;
+    if (vx > 0.6f) { vx = 0.6f + (vx - 0.6f) * (1.0f + ex); }
+    if (vy > 0.6f) { vy = 0.6f + (vy - 0.6f) * (1.0f + ex); }
+    if (vz > 0.6f) { vz = 0.6f + (vz - 0.6f) * (1.0f + ex); }
+    if (outSpace == 6) fin = make_float3(clamp01(hlgEnc(vx * 0.1f)), clamp01(hlgEnc(vy * 0.1f)), clamp01(hlgEnc(vz * 0.1f)));
+    else fin = make_float3(clamp01(pqEnc(vx * 100.0f)), clamp01(pqEnc(vy * 100.0f)), clamp01(pqEnc(vz * 100.0f)));
+  }
+
+  // ---- before/after divider ----
+  if (fx && splitPos > 0.0f){
+    float spx = splitPos * W;
+    if (px < spx) fin = fetchEnc(p_TexR, p_TexG, p_TexB, p_X, p_Y, p_Width, p_Height);
+    if (_fabs(px - spx) < 1.5f * res) fin = make_float3(1.0f, 1.0f, 1.0f);
+  }
+  // ---- film frame border + sprocket holes ----
+  if (fx && borderAmt > 0.0f){
+    float bt = borderAmt * 0.07f * H, bs = borderAmt * 0.03f * W;
+    if (sprocketAmt > 0.0f) bs = _fmaxf(bs, 0.07f * W * _fminf(borderAmt * 4.0f, 1.0f));
+    float hw = W * 0.5f - bs, hh = H * 0.5f - bt;
+    float cr = _fminf(0.03f * H, _fminf(hw, hh) * 0.5f);
+    float qx = _fabs(px - W * 0.5f) - (hw - cr), qy = _fabs(py - H * 0.5f) - (hh - cr);
+    float sdb = _sqrtf(_fmaxf(qx, 0.0f) * _fmaxf(qx, 0.0f) + _fmaxf(qy, 0.0f) * _fmaxf(qy, 0.0f)) + _fminf(_fmaxf(qx, qy), 0.0f) - cr;
+    if (sdb > 0.0f){
+      float3 bc = make_float3(0.035f, 0.028f, 0.022f);
+      if (sprocketAmt > 0.0f && (px < bs || px > W - bs)){
+        float hwid = bs * 0.45f; float hht = hwid * 1.35f; float pitch = hwid * 3.0f;
+        float hxc = (px < bs) ? bs * 0.5f : W - bs * 0.5f;
+        float ph = py - _floor(py / pitch) * pitch - pitch * 0.5f;
+        float rr = hwid * 0.2f;
+        float ddx = _fabs(px - hxc) - (hwid * 0.5f - rr), ddy = _fabs(ph) - (hht * 0.5f - rr);
+        float sdh = _sqrtf(_fmaxf(ddx, 0.0f) * _fmaxf(ddx, 0.0f) + _fmaxf(ddy, 0.0f) * _fmaxf(ddy, 0.0f)) + _fminf(_fmaxf(ddx, ddy), 0.0f) - rr;
+        if (sdh < 0.0f) bc = make_float3(lerpf(0.035f, 0.95f, sprocketAmt), lerpf(0.028f, 0.92f, sprocketAmt), lerpf(0.022f, 0.85f, sprocketAmt));
+      }
+      fin = bc;
+    }
+  }
+
+  // ---- pixel logo overlay ----
+#if FEAT_LOGO
+  if (showLogo != 0){
+    float s = _fmaxf(2.0f, _floor(W * 0.0028f));
+    float ox = W * 0.03f, oy = H * 0.04f;
+    float yTop = py;
+    float m = logoMask(px, yTop, s, ox, oy);
+    float sh = logoMask(px - s * 0.7f, yTop - s * 0.7f, s, ox, oy);
+    if (sh > 0.5f) fin = make_float3(fin.x * 0.25f, fin.y * 0.25f, fin.z * 0.25f);
+    if (m > 0.5f) fin = make_float3(1.0f, 0.54f, 0.12f);
+  }
+#endif
+  if (!(fin.x == fin.x)) fin.x = 0.0f;
+  if (!(fin.y == fin.y)) fin.y = 0.0f;
+  if (!(fin.z == fin.z)) fin.z = 0.0f;
+  return fin;
+}
